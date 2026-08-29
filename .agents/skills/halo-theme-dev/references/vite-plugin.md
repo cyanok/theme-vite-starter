@@ -29,6 +29,7 @@ my-theme/
 │   ├── partials/             # Not treated as page entries; referenced via include
 │   │   ├── layout.html       # Shared layout
 │   │   └── post-card.html    # Reusable post card component
+│   ├── layout.html            # Halo 2.26+ runtime page-layout contract
 │   ├── index.html            # Home page entry → templates/index.html
 │   ├── post.html             # → templates/post.html
 │   ├── page.html
@@ -127,12 +128,12 @@ Use in a page:
 
 ### Include Path Resolution
 
-| Syntax | Resolves to |
-| ------ | ----------- |
-| `foo.html` | `src/partials/foo.html` (preferred) |
-| `partials/foo.html` | `src/partials/foo.html` |
-| `./foo.html` | Relative to current file |
-| `/foo.html` | Relative to `src/` root |
+| Syntax              | Resolves to                         |
+| ------------------- | ----------------------------------- |
+| `foo.html`          | `src/partials/foo.html` (preferred) |
+| `partials/foo.html` | `src/partials/foo.html`             |
+| `./foo.html`        | Relative to current file            |
+| `/foo.html`         | Relative to `src/` root             |
 
 ### Static Asset Paths
 
@@ -140,14 +141,26 @@ Use in a page:
 
 ```html
 <!-- src/partials/layout.html: referencing src/css/main.css -->
-<link rel="stylesheet" href="./css/main.css" />   <!-- ✅ correct (relative to src/) -->
-<link rel="stylesheet" href="../css/main.css" />   <!-- ❌ wrong (relative to file location) -->
+<link rel="stylesheet" href="./css/main.css" />
+<!-- ✅ correct (relative to src/) -->
+<link rel="stylesheet" href="../css/main.css" />
+<!-- ❌ wrong (relative to file location) -->
 
 <!-- Same rule in src/index.html -->
-<script type="module" src="./js/main.ts"></script>  <!-- ✅ correct -->
+<script type="module" src="./js/main.ts"></script>
+<!-- ✅ correct -->
 ```
 
 Always write asset paths as if the file is in `src/`, even when it is inside `src/partials/`.
+
+## Runtime page-layout contract (Halo 2.26+)
+
+The build-time `src/partials/layout.html` used by `<include>` and `<slot>` is
+independent of Halo's runtime Thymeleaf contract. To let plugin-rendered frontend
+pages reuse the active theme shell, also provide a root `src/layout.html` entry
+that builds to `templates/layout.html` and declares `th:fragment="html (head,
+content)"`. Read [page-layout.md](page-layout.md) for the required signature and
+fallback behavior.
 
 ---
 

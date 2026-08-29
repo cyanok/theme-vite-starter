@@ -4,26 +4,23 @@
     "build": "tsc && vp build && theme-package",
     "build-only": "tsc && vp build",
     "dev": "vp build --watch",
-    "check": "vp check --fix",
+    "check": "vp check",
+    "fix": "vp check --fix",
     "prepare": "vp config",
-    "skills:update": "npx skills update"
+    "skills:update": "npx skills update",
+    "verify:build": "node scripts/verify-build.mjs"
   },
   "devDependencies": {
-    "@halo-dev/theme-package-cli": "^1.0.1",
-    "@halo-dev/vite-plugin-halo-theme": "^1.0.3",
-    "@types/node": "18.11.9",
-    "typescript": "^5.9.3",
-    "vite": "npm:@voidzero-dev/vite-plus-core@latest",
-    "vite-plus": "latest"
+    "@halo-dev/theme-package-cli": "1.1.1",
+    "@halo-dev/vite-plugin-halo-theme": "1.0.3",
+    "@types/node": "^24.12.0",
+    "typescript": "^6.0.3",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
   },
-  "packageManager": "pnpm@10.33.0",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ],
-    "overrides": {
-      "vite": "npm:@voidzero-dev/vite-plus-core@latest",
-      "vitest": "npm:@voidzero-dev/vite-plus-test@latest"
-    }
-  }
+  "engines": {
+    "node": ">=24.11.0",
+    "pnpm": ">=11.24.0"
+  },
+  "packageManager": "pnpm@11.24.0"
 }

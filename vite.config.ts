@@ -16,6 +16,6 @@ export default defineConfig({
     ignorePatterns: [".agents"],
   },
   staged: {
-    "*": ["vp check"],
+    "*": ["vp check --no-error-on-unmatched-pattern"],
   },
 });

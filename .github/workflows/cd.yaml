@@ -17,5 +17,5 @@ jobs:
       # if you have permission to release to appstore, please set this to false and set the app-id
       skip-appstore-release: true
       app-id: app-foo
-      pnpm-version: 10
+      pnpm-version: 11
       node-version: 24

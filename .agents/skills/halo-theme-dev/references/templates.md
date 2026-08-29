@@ -2,19 +2,51 @@
 
 ## Template Route Mapping
 
-| Template file | URL path | Main variables | `_templateId` |
-| ------------- | -------- | -------------- | ------------- |
-| `templates/index.html` | `/` | `posts` | `index` |
-| `templates/post.html` | `/archives/:slug` | `post` | `post` |
-| `templates/page.html` | `/:slug` | `singlePage` | `page` |
-| `templates/archives.html` | `/archives[/:year[/:month]]` | `archives` | `archives` |
-| `templates/tags.html` | `/tags` | `tags` | `tags` |
-| `templates/tag.html` | `/tags/:slug` | `tag`, `posts` | `tag` |
-| `templates/categories.html` | `/categories` | `categories` | `categories` |
-| `templates/category.html` | `/categories/:slug` | `category`, `posts` | `category` |
-| `templates/author.html` | `/authors/:slug` | `author`, `posts` | `author` |
+| Template file               | URL path                     | Main variables      | `_templateId` |
+| --------------------------- | ---------------------------- | ------------------- | ------------- |
+| `templates/index.html`      | `/`                          | `posts`             | `index`       |
+| `templates/post.html`       | `/archives/:slug`            | `post`              | `post`        |
+| `templates/page.html`       | `/:slug`                     | `singlePage`        | `page`        |
+| `templates/archives.html`   | `/archives[/:year[/:month]]` | `archives`          | `archives`    |
+| `templates/tags.html`       | `/tags`                      | `tags`              | `tags`        |
+| `templates/tag.html`        | `/tags/:slug`                | `tag`, `posts`      | `tag`         |
+| `templates/categories.html` | `/categories`                | `categories`        | `categories`  |
+| `templates/category.html`   | `/categories/:slug`          | `category`, `posts` | `category`    |
+| `templates/author.html`     | `/authors/:slug`             | `author`, `posts`   | `author`      |
 
 > Route prefixes (`/archives`, `/tags`, `/categories`) can be customized by users in Console system settings.
+
+## Error Templates
+
+Halo supports custom error pages under `templates/error/`:
+
+| Template file                | Status code match               |
+| ---------------------------- | ------------------------------- |
+| `templates/error/404.html`   | Exact 404                       |
+| `templates/error/4xx.html`   | Any 4xx client error (fallback) |
+| `templates/error/500.html`   | Exact 500                       |
+| `templates/error/5xx.html`   | Any 5xx server error (fallback) |
+| `templates/error/error.html` | Catch-all default               |
+
+Resolution order for a 404: `404.html` → `4xx.html` → `error.html`
+
+### Error template variables
+
+```html
+<div>
+  <h2 th:text="${error.status}">404</h2>
+  <p th:text="${#strings.defaultString(error.title, 'Error')}"></p>
+  <p th:if="${not #strings.isEmpty(error.detail)}" th:text="${error.detail}"></p>
+</div>
+```
+
+| Variable         | Type   | Description        |
+| ---------------- | ------ | ------------------ |
+| `error.status`   | number | HTTP status code   |
+| `error.title`    | string | Error title        |
+| `error.detail`   | string | Detailed message   |
+| `error.instance` | string | Error instance URI |
+| `error.type`     | string | Error type URI     |
 
 ## Custom Templates
 
@@ -25,7 +57,7 @@ spec:
   customTemplates:
     post:
       - name: Documentation
-        file: post_documentation.html  # create under templates/
+        file: post_documentation.html # create under templates/
 ```
 
 > After modifying theme.yaml, click "Reload Theme Configuration" on the theme page in Console.

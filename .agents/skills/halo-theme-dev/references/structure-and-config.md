@@ -10,6 +10,7 @@ my-theme/
 │   │   │   └── style.css
 │   │   └── js/
 │   │       └── main.js
+│   ├── layout.html           # Optional Halo 2.26+ page-layout contract
 │   ├── index.html            # Home page
 │   ├── post.html             # Post detail
 │   ├── page.html             # Single page detail
@@ -18,11 +19,22 @@ my-theme/
 │   ├── tag.html              # Tag archive
 │   ├── categories.html       # Category listing
 │   └── category.html         # Category archive
+├── screenshot.png            # Optional Console preview image (Halo 2.25+)
 ├── theme.yaml                # Theme configuration (required)
 └── settings.yaml             # Theme settings form definition (optional)
 ```
 
 > **Important**: The theme folder name must match the `metadata.name` field in `theme.yaml`; otherwise some assets may fail to load.
+
+Halo 2.25+ recognizes the first readable root preview image in this order:
+`screenshot.png`, `screenshot.jpeg`, `screenshot.jpg`, `screenshot.webp`. The
+resolved URL is exposed as `Theme.status.screenshot`.
+
+Halo 2.26+ recognizes `templates/layout.html` as the optional page-layout
+contract used by plugin-rendered frontend pages. It must declare an
+`html(head, content)` fragment. Read [page-layout.md](page-layout.md) before
+adding or changing this file; an internal-only layout should use another path
+such as `templates/modules/layout.html`.
 
 ## theme.yaml
 
@@ -56,9 +68,9 @@ spec:
   homepage: https://github.com/example/theme-foo
   repo: https://github.com/example/theme-foo.git
   issues: https://github.com/example/theme-foo/issues
-  settingName: "theme-foo-setting"   # must match metadata.name in settings.yaml
+  settingName: "theme-foo-setting" # must match metadata.name in settings.yaml
   configMapName: "theme-foo-configMap"
-  customTemplates:                   # optional
+  customTemplates: # optional
     post:
       - name: Documentation
         description: Article in documentation format
@@ -83,15 +95,15 @@ spec:
 
 ### Key Fields
 
-| Field | Description | Required |
-| ----- | ----------- | -------- |
-| `metadata.name` | Unique theme identifier — **must match the folder name** | Yes |
-| `spec.displayName` | Display name | Yes |
-| `spec.version` | Theme version | Yes |
-| `spec.requires` | Minimum required Halo version | Yes |
-| `spec.settingName` | Setting resource name — must match `metadata.name` in settings.yaml | No |
-| `spec.configMapName` | ConfigMap name for persisting settings | No (configure together with settingName) |
-| `spec.customTemplates` | Custom template configuration | No |
+| Field                  | Description                                                         | Required                                 |
+| ---------------------- | ------------------------------------------------------------------- | ---------------------------------------- |
+| `metadata.name`        | Unique theme identifier — **must match the folder name**            | Yes                                      |
+| `spec.displayName`     | Display name                                                        | Yes                                      |
+| `spec.version`         | Theme version                                                       | Yes                                      |
+| `spec.requires`        | Minimum required Halo version                                       | Yes                                      |
+| `spec.settingName`     | Setting resource name — must match `metadata.name` in settings.yaml | No                                       |
+| `spec.configMapName`   | ConfigMap name for persisting settings                              | No (configure together with settingName) |
+| `spec.customTemplates` | Custom template configuration                                       | No                                       |
 
 > After modifying `theme.yaml`, click "Reload Theme Configuration" on the theme page in Console for changes to take effect.
 
@@ -103,14 +115,14 @@ Defines a form that is auto-rendered on the theme settings page in Console, usin
 apiVersion: v1alpha1
 kind: Setting
 metadata:
-  name: theme-foo-setting  # must match spec.settingName in theme.yaml
+  name: theme-foo-setting # must match spec.settingName in theme.yaml
 spec:
   forms:
-    - group: style   # group name (accessed in templates as theme.config.style.xxx)
+    - group: style # group name (accessed in templates as theme.config.style.xxx)
       label: Style
       formSchema:
         - $formkit: radio
-          name: color_scheme   # field name (accessed as theme.config.style.color_scheme)
+          name: color_scheme # field name (accessed as theme.config.style.color_scheme)
           label: Default color scheme
           value: system
           options:
@@ -156,22 +168,22 @@ Pattern: `theme.config.[group].[name]`
 
 Commonly used native input components in theme settings (see links for full docs):
 
-| `$formkit` value | Purpose | Docs |
-| ---------------- | ------- | ---- |
-| `text` | Single-line text | https://formkit.com/inputs/text.md |
-| `textarea` | Multi-line text | https://formkit.com/inputs/textarea.md |
-| `number` | Number input | https://formkit.com/inputs/number.md |
-| `password` | Password input | https://formkit.com/inputs/password.md |
-| `radio` | Radio buttons (options list) | https://formkit.com/inputs/radio.md |
-| `checkbox` | Checkbox (single or multi-select) | https://formkit.com/inputs/checkbox.md |
-| `color` | Color picker (returns hex value) | https://formkit.com/inputs/color.md |
-| `range` | Slider range | https://formkit.com/inputs/range.md |
-| `date` | Date picker | https://formkit.com/inputs/date.md |
-| `datetime-local` | Date-time picker | https://formkit.com/inputs/datetime-local.md |
-| `button` | Button | https://formkit.com/inputs/button.md |
-| `email` | Email input | https://formkit.com/inputs/email.md |
-| `group` | Group (for grouping fields) | https://formkit.com/inputs/group.md |
-| `url` | URL input | https://formkit.com/inputs/url.md |
+| `$formkit` value | Purpose                           | Docs                                         |
+| ---------------- | --------------------------------- | -------------------------------------------- |
+| `text`           | Single-line text                  | https://formkit.com/inputs/text.md           |
+| `textarea`       | Multi-line text                   | https://formkit.com/inputs/textarea.md       |
+| `number`         | Number input                      | https://formkit.com/inputs/number.md         |
+| `password`       | Password input                    | https://formkit.com/inputs/password.md       |
+| `radio`          | Radio buttons (options list)      | https://formkit.com/inputs/radio.md          |
+| `checkbox`       | Checkbox (single or multi-select) | https://formkit.com/inputs/checkbox.md       |
+| `color`          | Color picker (returns hex value)  | https://formkit.com/inputs/color.md          |
+| `range`          | Slider range                      | https://formkit.com/inputs/range.md          |
+| `date`           | Date picker                       | https://formkit.com/inputs/date.md           |
+| `datetime-local` | Date-time picker                  | https://formkit.com/inputs/datetime-local.md |
+| `button`         | Button                            | https://formkit.com/inputs/button.md         |
+| `email`          | Email input                       | https://formkit.com/inputs/email.md          |
+| `group`          | Group (for grouping fields)       | https://formkit.com/inputs/group.md          |
+| `url`            | URL input                         | https://formkit.com/inputs/url.md            |
 
 FormKit Inputs overview: https://formkit.com/inputs
 
@@ -183,30 +195,43 @@ FormKit Schema (conditional rendering, loops, expressions, advanced usage): http
 
 Additional input components provided by Halo on top of FormKit:
 
-| `$formkit` value | Purpose |
-| ---------------- | ------- |
-| `select` | Enhanced dropdown with multi-select, search, and remote data source |
-| `switch` | Toggle switch (boolean or custom on/off values) |
-| `toggle` | Visual toggle supporting image/color/text options |
-| `attachment` | Attachment picker (preview, direct upload, select from library) |
-| `attachmentInput` | Attachment picker (library popup only) |
-| `code` | Code editor (supports yaml/html/js/css/json) |
-| `array` | Object array (add/remove/reorder — recommended over repeater) |
-| `list` | Primitive array (strings, numbers, etc.) |
-| `categorySelect` | Post category selector (returns `metadata.name`) |
-| `categoryCheckbox` | Post category checkbox (returns array of `metadata.name`) |
-| `tagSelect` | Post tag selector (returns `metadata.name`) |
-| `tagCheckbox` | Post tag checkbox (returns array of `metadata.name`) |
-| `postSelect` | Post selector |
-| `singlePageSelect` | Single page selector |
-| `menuSelect` | Menu selector (supports multi-select) |
-| `menuCheckbox` | Menu checkbox |
-| `menuRadio` | Menu radio |
-| `iconify` | Icon picker (Iconify-based, supports svg/dataurl/url/name formats) |
-| `secret` | Secret resource selector |
-| `verificationForm` | Remote verification form group |
+| `$formkit` value   | Purpose                                                             |
+| ------------------ | ------------------------------------------------------------------- |
+| `select`           | Enhanced dropdown with multi-select, search, and remote data source |
+| `switch`           | Toggle switch (boolean or custom on/off values)                     |
+| `toggle`           | Visual toggle supporting image/color/text options                   |
+| `attachment`       | Attachment picker (preview, direct upload, select from library)     |
+| `attachmentInput`  | Attachment picker (library popup only)                              |
+| `code`             | Code editor (supports yaml/html/js/css/json)                        |
+| `array`            | Object array (add/remove/reorder — recommended over repeater)       |
+| `list`             | Primitive array (strings, numbers, etc.)                            |
+| `categorySelect`   | Post category selector (returns `metadata.name`)                    |
+| `categoryCheckbox` | Post category checkbox (returns array of `metadata.name`)           |
+| `tagSelect`        | Post tag selector (returns `metadata.name`)                         |
+| `tagCheckbox`      | Post tag checkbox (returns array of `metadata.name`)                |
+| `postSelect`       | Post selector                                                       |
+| `singlePageSelect` | Single page selector                                                |
+| `menuSelect`       | Menu selector (supports multi-select)                               |
+| `menuCheckbox`     | Menu checkbox                                                       |
+| `menuRadio`        | Menu radio                                                          |
+| `iconify`          | Icon picker (Iconify-based, supports svg/dataurl/url/name formats)  |
+| `secret`           | Secret resource selector                                            |
+| `verificationForm` | Remote verification form group                                      |
 
 Full parameter reference: https://raw.githubusercontent.com/halo-dev/docs/refs/heads/main/docs/developer-guide/form-schema.md
+
+Version-sensitive FormKit notes:
+
+- Halo 2.25+: `select` option objects support `icon` and `description`; remote
+  select data can map those fields via `requestOption.iconField` and
+  `requestOption.descriptionField`.
+- Halo 2.25+: `secret` supports `descriptionPreset`.
+- Halo 2.23+: `iconify` supports optional `sizing`.
+- Halo 2.22.8+: `toggle` is available.
+- Halo 2.22.2+: `switch` is available.
+- Halo 2.22+: prefer `array` over `repeater`; the newer `attachment` supports
+  preview/direct upload/library selection, while the older library-only picker
+  is `attachmentInput`.
 
 ### FormKit Schema Gotchas
 
@@ -225,7 +250,7 @@ Within the `children` of an `array`, `list`, or `repeater`, access the current i
     - $formkit: text
       name: url
       label: URL
-      if: "$value.platform !== ''"   # references sibling field "platform"
+      if: "$value.platform !== ''" # references sibling field "platform"
 
     # ❌ Wrong: $get(platform).value does not work in a nested context
     - $formkit: text

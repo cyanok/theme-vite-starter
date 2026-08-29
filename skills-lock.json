@@ -4,7 +4,8 @@
     "halo-theme-dev": {
       "source": "halo-dev/dev-skills",
       "sourceType": "github",
-      "computedHash": "f6b0a799298f6f729366fdad175662fa7386e615839ad4af807285954969a9f4"
+      "skillPath": "skills/halo-theme-dev/SKILL.md",
+      "computedHash": "e759647593723e1be65cb4593dda42e12e775e00075a0085398275fa027d3cd1"
     }
   }
 }

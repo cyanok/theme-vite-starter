@@ -4,10 +4,10 @@ metadata:
   name: theme-vite-starter-setting
 spec:
   forms:
-    - group: styles
-      label: 样式
+    - group: basic
+      label: 基础
       formSchema:
-        - $formkit: color
-          name: background_color
-          label: 背景颜色
-          value: "#f2f2f2"
+        - $formkit: textarea
+          name: custom_footer
+          label: 自定义页脚
+          value: ""

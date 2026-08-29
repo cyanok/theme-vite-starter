@@ -23,7 +23,7 @@
 ```
 .
 ├── src/                 # 源码：页面 HTML、partials、css、js
-├── public/              # 可选；复制到 templates/assets/
+├── public/              # 可选；目录内容原样复制到 templates/ 根目录
 ├── templates/           # 构建生成
 ├── theme.yaml           # 主题元数据（必填）
 ├── settings.yaml        # 控制台主题设置表单（可选）
@@ -34,7 +34,7 @@
 ### `@halo-dev/vite-plugin-halo-theme`
 
 1. **多页入口**：自动将 `src/` 下（除 `src/partials/` 外）的 `.html` 作为入口，输出到 `templates/` 下同名文件（例如 `src/index.html` → `templates/index.html`）。
-2. **静态资源**：`src/` 中的 CSS/JS 由 Vite 打包进 `templates/assets/`；`public/` 中的文件会原样复制到 `templates/assets/`（不经打包）。
+2. **静态资源**：`src/` 中的 CSS/JS 由 Vite 打包进 `templates/assets/`；`public/` 的目录内容会原样复制到 `templates/` 根目录（不经打包）。例如，需要生成 `templates/assets/images/logo.png` 时，应将源文件放在 `public/assets/images/logo.png`。
 3. **模板复用**：支持构建期 `<include>`、`<slot>`，减轻纯 Thymeleaf 片段的重复书写。
 4. **资源路径约定**：所有 HTML（含 `partials`）里引用静态资源时，路径按 **`src/` 根** 解析，而不是按当前文件所在子目录；说明见 [vite-plugin-halo-theme](https://github.com/halo-sigs/vite-plugin-halo-theme)。
 

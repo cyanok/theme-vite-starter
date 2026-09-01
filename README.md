@@ -62,4 +62,4 @@ pnpm install --frozen-lockfile
 
 ## Agent Skill
 
-`.agents/skills/halo-theme-dev/` 是从 `halo-dev/dev-skills` 同步的官方 Halo 主题开发 Skill，包含版本敏感的模板、Finder API、配置、Vite、页面布局与打包参考。项目专属规则位于根 `AGENTS.md`，不在官方 Skill 中维护本地分叉。
+`.agents/skills/halo-theme-dev/` 是从 `halo-dev/dev-skills` 同步的官方 Halo 主题开发 Skill，提供主题源码检查、运行时边界、Vite 起始模板与验证要求；涉及版本敏感的模板、Finder API、配置、页面布局和打包契约时，Skill 会按需查询 Halo 官方文档。项目专属规则位于根 `AGENTS.md`，不在官方 Skill 中维护本地分叉。

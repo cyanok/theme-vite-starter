@@ -11,8 +11,9 @@
 - `pnpm install --frozen-lockfile`：按锁文件安装依赖。
 - `pnpm check`：只检查格式与代码问题，不修改文件。
 - `pnpm fix`：自动修复格式与可修复的代码问题。
+- `pnpm test:build`：在临时目录验证开发监听、错误恢复和产物检查。
 - `pnpm build-only`：执行 TypeScript 检查并生成 `templates/`。
 - `pnpm verify:build`：检查页面、布局契约和静态资源构建产物。
-- `pnpm dev`：以 watch 模式持续构建主题。
-- `pnpm build`：构建并打包可发布的主题 ZIP。
+- `pnpm dev`：监听源码、片段和页面增删，串行重新构建主题。
+- `pnpm build`：执行静态检查、构建与产物验证，通过后打包可发布的主题 ZIP。
 - `pnpm skills:update`：从锁定来源更新项目 Agent Skill。

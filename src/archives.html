@@ -4,6 +4,7 @@
   </template>
 
   <h1>Archives</h1>
+  <p th:if="${#lists.isEmpty(archives.items)}">No posts yet.</p>
 
   <th:block th:each="archive : ${archives.items}">
     <div class="archive-year">

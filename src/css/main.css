@@ -52,8 +52,17 @@ a:hover {
   list-style: none;
   margin: 0;
   padding: 0;
+}
+
+.site-nav > ul {
   display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
+}
+
+.site-nav ul ul {
+  margin-top: 0.25rem;
+  padding-left: 1rem;
 }
 
 .site-main {
@@ -161,7 +170,15 @@ a:hover {
 .category-list {
   list-style: none;
   padding: 0;
+}
+
+.tag-list {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.category-list .category-list {
+  margin: 0;
+  padding-left: 1.5rem;
 }

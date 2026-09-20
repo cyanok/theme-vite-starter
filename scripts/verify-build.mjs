@@ -41,10 +41,19 @@ for (const expectedContent of requiredLayoutContent) {
   }
 }
 
-for (const pageName of pageNames) {
-  const page = await readFile(new URL(pageName, templatesDirectory), "utf8");
+const templateNames = (await readdir(templatesDirectory, { recursive: true })).filter((name) =>
+  name.endsWith(".html"),
+);
+for (const templateName of templateNames) {
+  const page = await readFile(
+    new URL(templateName.replaceAll("\\", "/"), templatesDirectory),
+    "utf8",
+  );
   if (/<\/?(?:include|slot)(?:\s|\/?>)/i.test(page)) {
-    throw new Error(`templates/${pageName} contains an unprocessed include or slot tag`);
+    throw new Error(`templates/${templateName} contains an unprocessed include or slot tag`);
+  }
+  if (/<!--\s*Partial error:/i.test(page)) {
+    throw new Error(`templates/${templateName} contains a template compilation error`);
   }
 }
 
@@ -63,5 +72,5 @@ for (const extension of [".css", ".js"]) {
 }
 
 console.log(
-  `Verified ${pageNames.length} theme pages, the Halo page-layout contract, and built assets in ${join("templates", "assets")}.`,
+  `Verified ${pageNames.length} theme pages, ${templateNames.length} HTML templates, the Halo page-layout contract, and built assets in ${join("templates", "assets")}.`,
 );

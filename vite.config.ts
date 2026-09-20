@@ -2,7 +2,21 @@ import { haloThemePlugin } from "@halo-dev/vite-plugin-halo-theme";
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
-  plugins: [haloThemePlugin()],
+  plugins: [
+    haloThemePlugin(),
+    {
+      name: "validate-halo-templates",
+      transformIndexHtml: {
+        order: "post",
+        handler(html, context) {
+          if (/<!--\s*Partial error:/i.test(html)) {
+            throw new Error(`Template compilation failed: ${context.filename}`);
+          }
+          return html;
+        },
+      },
+    },
+  ],
   lint: { options: { typeAware: true, typeCheck: true }, ignorePatterns: [".agents"] },
   fmt: {
     printWidth: 100,

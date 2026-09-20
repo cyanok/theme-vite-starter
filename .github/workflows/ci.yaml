@@ -30,6 +30,9 @@ jobs:
       - name: Check
         run: pnpm check
 
+      - name: Test build workflow
+        run: pnpm test:build
+
       - name: Build
         run: pnpm build-only
 

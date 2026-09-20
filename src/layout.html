@@ -18,15 +18,9 @@
       <div class="container">
         <a class="site-title" th:href="@{/}" th:text="${site.title}">Site Title</a>
         <nav class="site-nav" th:with="menu = ${menuFinder.getPrimary()}">
-          <ul>
-            <li th:each="item : ${menu.menuItems}">
-              <a
-                th:href="@{${item.status.href}}"
-                th:text="${item.status.displayName}"
-                th:target="${item.spec.target?.value}"
-              ></a>
-            </li>
-          </ul>
+          <th:block
+            th:replace="~{modules/menu-tree :: tree(menuItems=${menu.menuItems})}"
+          ></th:block>
         </nav>
       </div>
     </header>

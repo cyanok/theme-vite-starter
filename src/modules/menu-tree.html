@@ -1,0 +1,12 @@
+<ul th:fragment="tree (menuItems)" th:if="${not #lists.isEmpty(menuItems)}">
+  <li th:each="item : ${menuItems}">
+    <a
+      th:href="@{${item.status.href}}"
+      th:text="${item.status.displayName}"
+      th:target="${item.spec.target?.value}"
+    ></a>
+    <th:block th:if="${not #lists.isEmpty(item.children)}">
+      <th:block th:replace="~{modules/menu-tree :: tree(menuItems=${item.children})}"></th:block>
+    </th:block>
+  </li>
+</ul>

@@ -4,7 +4,8 @@
     <script type="module" src="./js/index.ts"></script>
   </template>
 
-  <ul class="post-list">
+  <p th:if="${#lists.isEmpty(posts.items)}">No posts yet.</p>
+  <ul class="post-list" th:if="${not #lists.isEmpty(posts.items)}">
     <include src="post-card.html"></include>
   </ul>
 

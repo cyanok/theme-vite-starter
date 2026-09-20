@@ -11,5 +11,5 @@ peerDependencyRules:
   allowAny:
     - vite
 
-onlyBuiltDependencies:
-  - esbuild
+allowBuilds:
+  esbuild: true

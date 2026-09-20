@@ -1,6 +1,7 @@
 # 项目协作约定
 
 - 目标运行环境为 Halo `>=2.26.0`。
+- 项目文本文件使用 UTF-8、LF 换行和文件末尾换行；遵循 `.gitattributes`、`.editorconfig` 与 `vite.config.ts` 中的格式约束。
 - `src/` 是源码目录，`templates/` 是构建产物；禁止直接编辑 `templates/`。
 - `src/layout.html` 实现 Halo 2.26 运行时页面布局契约，并构建为 `templates/layout.html`。
 - `src/partials/layout.html` 是现有主题页面通过 `<include>` / `<slot>` 使用的 Vite 构建期私有布局，两者职责不同。

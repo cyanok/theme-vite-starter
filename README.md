@@ -9,7 +9,7 @@
 - Halo `>=2.26.0`
 - Node.js `>=24.11.0`
 - pnpm `>=11.24.0`；项目固定使用 `pnpm@11.24.0`
-- Vite Plus `0.3.0`
+- Vite Plus `0.3.3`
 - TypeScript 6
 
 依赖安装：
@@ -17,6 +17,16 @@
 ```bash
 pnpm install --frozen-lockfile
 ```
+
+## Vite Plus 更新方案
+
+项目已使用 Vite Plus，通过 `pnpm-workspace.yaml` 的 catalog 统一固定 `vite-plus` 和 `vite` 核心别名。针对 `0.3.0` → `0.3.3`，推荐采用[官方支持的手动更新方式](https://viteplus.dev/guide/upgrade-project#manually-updating)，同步调整两项版本并更新锁文件，保留现有检查、Git hook 和 Halo 主题构建流程。
+
+- 将 catalog 中的 `vite-plus` 固定为 `0.3.3`，将 `vite` 固定为 `npm:@voidzero-dev/vite-plus-core@0.3.3`；保留 `package.json` 的 `catalog:` 引用和 `vite@*` override，确保 Halo 插件与项目使用同一套 Vite。
+- 本次内置 Vite 从 `8.2.2` 更新到 `8.3.0`，仍满足 Halo 主题插件 `1.0.3` 声明的 `^7.0.0 || ^8.0.0` 范围。现有 Node.js 24 和 pnpm 11 基线继续适用。项目未使用 `vp pack`、React 或独立的 Vitest 配置，无需对应的配置迁移。
+- `0.3.3` 更新了 Oxlint 和 Oxfmt，[发布说明](https://github.com/voidzero-dev/vite-plus/releases/tag/v0.3.3)要求重新检查格式。更新 catalog 后运行 `pnpm install --no-frozen-lockfile` 和 `pnpm fix`，复核差异，再运行 `pnpm install --frozen-lockfile`、`pnpm check`、`pnpm build` 和 `pnpm verify:build`。
+
+后续更新也应同步固定 `vite-plus` 与核心别名版本，并提交相应锁文件变更；普通开发和 CI 仍使用冻结安装。
 
 ## 源码与构建产物
 
@@ -41,6 +51,8 @@ pnpm install --frozen-lockfile
 两套布局服务于不同阶段，不应互相替代，也不要直接修改其构建结果。
 
 ## 开发、检查与构建
+
+项目文本文件统一使用 UTF-8、LF 换行和文件末尾换行。`.gitattributes` 通过 `text=auto eol=lf` 约束 Git 的文本换行，自动识别二进制文件；`.editorconfig`、VS Code 工作区设置和 Vite Plus 格式器同步使用 LF，避免跨平台编辑时反复产生换行差异。运行 `pnpm fix` 修复格式，运行 `pnpm check` 验证结果。
 
 | 命令                 | 职责                                                      |
 | -------------------- | --------------------------------------------------------- |

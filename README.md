@@ -26,15 +26,19 @@
 
 5. 首次构建完成后，在 Halo 控制台的「主题」→「切换主题」→「未安装」中安装并启用主题，然后访问 Halo 站点预览。
 
-`pnpm dev` 监听源码、公共资源、环境变量文件和构建配置（包括配置导入的本地文件），自动更新 `templates/`。该命令不启动 Vite 开发服务器，预览地址使用 Halo 站点地址；页面由 Halo 渲染，查看改动时需手动刷新浏览器。构建失败后，修正文件并保存即可自动重试。
+`pnpm dev` 自动更新 `templates/`，预览地址使用 Halo 站点地址，查看改动时手动刷新浏览器。该命令不启动 Vite 开发服务器。构建失败后，修正文件并保存即可自动重试。
 
 修改 `theme.yaml` 或 `settings.yaml` 后，还需在 Halo 控制台的主题详情中点击「重载主题配置」使配置生效。
 
-## 环境变量
+## 日常开发
+
+监听范围包括 `src/`、`public/`，以及项目根目录的 `theme.yaml`、`vite.config.ts`、`tsconfig.json` 和 `.env*`。修改监听范围外的配置依赖，或安装、更新依赖后，重新启动 `pnpm dev`。
 
 环境变量文件放在项目根目录。`pnpm dev` 和 `pnpm build` 默认使用 Vite 的生产构建模式，读取 `.env`、`.env.local`、`.env.production` 和 `.env.production.local`。
 
 浏览器代码通过 `import.meta.env.VITE_*` 访问以 `VITE_` 开头的变量。这些值会写入构建产物，只用于公开配置；本地专用配置可放入 Git 已忽略的 `*.local` 文件。
+
+使用 `pnpm check` 检查格式与代码问题，`pnpm fix` 自动修复可处理的问题。修改页面、样式或插件集成后，按 [运行时冒烟清单](docs/halo-smoke-test.md) 在 Halo 中检查受影响的页面。
 
 ## 目录与布局
 
@@ -87,26 +91,7 @@
 
 无需编译的静态资源放入 `public/assets/`，构建后位于 `templates/assets/`。例如 `public/assets/logo.svg` 可在运行时模板中通过 `th:src="@{/assets/logo.svg}"` 引用。
 
-## 常用命令
-
-| 命令                | 说明                                                 |
-| ------------------- | ---------------------------------------------------- |
-| `pnpm dev`          | 监听变化并持续构建                                   |
-| `pnpm check`        | 检查格式与代码问题                                   |
-| `pnpm fix`          | 自动修复格式与可修复的代码问题                       |
-| `pnpm test:build`   | 在临时目录验证开发监听、模板编译、错误恢复和产物检查 |
-| `pnpm build-only`   | 执行 TypeScript 检查并生成 `templates/`              |
-| `pnpm verify:build` | 检查已有构建产物的完整性与布局契约                   |
-| `pnpm build`        | 检查、构建并打包主题 ZIP                             |
-
-单独运行 `pnpm verify:build` 前，先执行 `pnpm build-only`。根据改动范围选择验证方式：
-
-- 仅修改文档：运行 `pnpm check`。
-- 修改主题源码、资源或元数据：运行 `pnpm build`，完成静态检查、TypeScript 检查、构建、产物验证和打包。
-- 修改构建脚本、配置、依赖或补丁：额外运行 `pnpm test:build`。该测试使用临时夹具，`pnpm build` 不会自动执行它。
-- 修改 Thymeleaf 表达式、布局、样式或插件集成：还需按 [运行时冒烟清单](docs/halo-smoke-test.md) 在 Halo 中检查受影响的页面；自动化检查不验证最终渲染效果。
-
-依赖安装会自动应用 `pnpm-workspace.yaml` 中声明的插件补丁，用于正确处理 HTML 原生空元素，以及 `script`、`style`、`textarea` 和 `title` 内的文本，并避免不同模板路径的构建入口名称冲突。升级主题构建插件时，检查 `patches/` 中的补丁是否仍适用；确认上游已覆盖对应行为并通过构建流程测试后，再移除补丁。
+依赖安装会自动应用主题构建插件的兼容性补丁，详见 [补丁说明](patches/README.md)。修改构建脚本、配置、依赖或补丁后，额外运行 `pnpm test:build` 验证开发监听和模板编译。
 
 ## 打包与发布
 
@@ -114,7 +99,9 @@
 pnpm build
 ```
 
-主题 ID 和版本由 `theme.yaml` 中的 `metadata.name` 与 `spec.version` 定义。命令完成静态检查、构建和产物验证后，生成 `dist/<主题 ID>-<版本>.zip`，可在 Halo 控制台上传安装。
+主题 ID 和版本由 `theme.yaml` 中的 `metadata.name` 与 `spec.version` 定义。命令完成静态检查、TypeScript 检查、构建和产物验证后，生成 `dist/<主题 ID>-<版本>.zip`，可在 Halo 控制台上传安装。
+
+只需生成模板时，可运行 `pnpm build-only` 执行 TypeScript 检查并生成 `templates/`；`pnpm verify:build` 用于检查已有产物，不会自动构建。
 
 发布前请按 [Halo 2.26 运行时冒烟清单](docs/halo-smoke-test.md) 在 Halo 中验证主要页面、空状态、分页、评论和插件页面布局，并使用其中的示例正文检查移动端适配。
 
@@ -123,6 +110,6 @@ pnpm build
 - [CI 检查](.github/workflows/ci.yaml)：执行静态检查、构建流程测试、构建、产物验证和 ZIP 打包。
 - [Release 发布](.github/workflows/cd.yaml)：发布 GitHub Release 时触发，使用 Halo 共享工作流构建并发布主题，默认跳过应用市场发布；需要发布到应用市场时，按工作流注释配置发布选项。
 
-发布前更新 `theme.yaml` 的 `spec.version`，GitHub Release 标签不会自动回写主题版本。调整 Node.js 或 pnpm 版本时，同步检查 `.node-version`、`package.json` 与 Release 工作流中的显式版本设置。
+发布前更新 `theme.yaml` 的 `spec.version`，GitHub Release 标签不会自动回写主题版本。
 
 更多主题开发用法见 [Halo 主题开发文档](https://docs.halo.run/developer-guide/theme/)。

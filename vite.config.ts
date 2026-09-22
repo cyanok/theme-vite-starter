@@ -29,7 +29,6 @@ export default defineConfig({
     sortPackageJson: true,
     insertFinalNewline: true,
     sortImports: {},
-    sortTailwindcss: {},
     ignorePatterns: [".agents"],
   },
   staged: {

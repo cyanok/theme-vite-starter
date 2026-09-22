@@ -1,5 +1,5 @@
 import { watch } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { build } from "vite-plus";
@@ -8,9 +8,6 @@ const projectRoot = resolve(fileURLToPath(new URL("../", import.meta.url)));
 const directories = ["src", "public"];
 const configurationFiles = new Set(["theme.yaml", "vite.config.ts", "tsconfig.json"]);
 const directoryWatchers = new Map();
-const configurationWatchers = new Map();
-let configurationDependencies = new Map();
-let failedConfigurationWatcher;
 let timer;
 let building = false;
 let pending = false;
@@ -23,25 +20,10 @@ async function rebuild() {
   if (building || stopped) return;
   building = true;
   pending = false;
-  let configurationResolved = false;
   try {
-    await build({
-      build: { watch: null },
-      plugins: [
-        {
-          name: "watch-theme-configuration",
-          configResolved(config) {
-            configurationResolved = true;
-            watchConfigurationDependencies(config.configFileDependencies);
-            failedConfigurationWatcher?.close();
-            failedConfigurationWatcher = undefined;
-          },
-        },
-      ],
-    });
+    await build({ build: { watch: null } });
     console.log("主题构建完成，继续监听源码变化。");
   } catch (error) {
-    if (!configurationResolved) watchFailedConfiguration();
     console.error(error instanceof Error ? error.message : String(error));
     console.error("主题构建失败，修正后保存文件将自动重试。");
   } finally {
@@ -69,46 +51,6 @@ function watchDirectory(directory) {
   }
 }
 
-function watchConfigurationDependencies(files) {
-  if (stopped) return;
-  const nextDependencies = new Map();
-  for (const file of files) {
-    const path = resolve(file);
-    const directory = dirname(path);
-    if (!nextDependencies.has(directory)) nextDependencies.set(directory, new Set());
-    nextDependencies.get(directory).add(basename(path));
-  }
-  configurationDependencies = nextDependencies;
-  for (const [directory, watcher] of configurationWatchers) {
-    if (!nextDependencies.has(directory)) {
-      watcher.close();
-      configurationWatchers.delete(directory);
-    }
-  }
-  for (const directory of nextDependencies.keys()) {
-    if (directory === projectRoot || configurationWatchers.has(directory)) continue;
-    // 监听父目录，保证编辑器原子替换文件后仍能继续监听。
-    const watcher = watch(directory, (_event, filename) => {
-      if (filename === null || configurationDependencies.get(directory)?.has(filename)) {
-        scheduleBuild();
-      }
-    });
-    watcher.on("error", handleWatchError);
-    configurationWatchers.set(directory, watcher);
-  }
-}
-
-function watchFailedConfiguration() {
-  if (stopped || failedConfigurationWatcher) return;
-  // 首次解析失败时 Vite 尚未提供依赖列表；临时监听项目文件以捕获修正，
-  // 成功解析后恢复精确监听，忽略依赖、产物和工具元数据目录。
-  const ignored = new Set(["node_modules", "templates", "dist", ".git", ".agents", ".codex"]);
-  failedConfigurationWatcher = watch(projectRoot, { recursive: true }, (_event, filename) => {
-    if (filename === null || !ignored.has(filename.split(/[\\/]/)[0])) scheduleBuild();
-  });
-  failedConfigurationWatcher.on("error", handleWatchError);
-}
-
 const rootWatcher = watch(projectRoot, (_event, filename) => {
   if (filename === null) {
     directories.forEach(watchDirectory);
@@ -118,11 +60,7 @@ const rootWatcher = watch(projectRoot, (_event, filename) => {
   if (directories.includes(filename)) {
     watchDirectory(filename);
     scheduleBuild();
-  } else if (
-    configurationFiles.has(filename) ||
-    configurationDependencies.get(projectRoot)?.has(filename) ||
-    filename.startsWith(".env")
-  ) {
+  } else if (configurationFiles.has(filename) || filename.startsWith(".env")) {
     scheduleBuild();
   }
 });
@@ -133,8 +71,6 @@ function stop(exitCode) {
   clearTimeout(timer);
   rootWatcher.close();
   for (const watcher of directoryWatchers.values()) watcher.close();
-  for (const watcher of configurationWatchers.values()) watcher.close();
-  failedConfigurationWatcher?.close();
   process.exitCode = exitCode;
 }
 

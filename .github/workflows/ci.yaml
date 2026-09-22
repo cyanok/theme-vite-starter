@@ -27,19 +27,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Check
-        run: pnpm check
-
       - name: Test build workflow
         run: pnpm test:build
 
-      - name: Build
-        run: pnpm build-only
-
-      - name: Verify build output
-        run: pnpm verify:build
-
-      - name: Package theme
-        run: |
-          pnpm exec theme-package
-          compgen -G 'dist/*.zip' > /dev/null
+      - name: Build and package theme
+        run: pnpm build

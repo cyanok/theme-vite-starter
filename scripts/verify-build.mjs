@@ -80,7 +80,7 @@ function assertLayoutContract(document) {
   }
 }
 
-for (const sourceName of new Set(["index.html", "layout.html", ...sourceNames])) {
+for (const sourceName of new Set(["index.html", ...sourceNames])) {
   await assertFileExists(sourceName);
 }
 
@@ -93,31 +93,27 @@ for (const templateName of templateNames) {
     "utf8",
   );
   const document = parseFragment(page);
-  if (
-    [...elements(document)].some((node) => node.tagName === "include" || node.tagName === "slot")
-  ) {
-    throw new Error(`templates/${templateName} contains an unprocessed include or slot tag`);
+  if ([...elements(document)].some((node) => node.tagName === "include")) {
+    throw new Error(`templates/${templateName} contains an unprocessed include tag`);
   }
   if (/<!--\s*Partial error:/i.test(page)) {
     throw new Error(`templates/${templateName} contains a template compilation error`);
   }
   if (templateName === "layout.html") assertLayoutContract(parseHtml(page));
-  const templateUrl = new URL(templateName.replaceAll("\\", "/"), themeBase);
   for (const element of elements(document)) {
     if (!resourceElements.has(element.tagName)) continue;
     const attributes = new Map(element.attrs.map(({ name, value }) => [name, value]));
     for (const name of ["src", "href"]) {
       if (attributes.has(`th:${name}`) || attributes.has(`data-th-${name}`)) continue;
       const reference = attributes.get(name);
-      // 动态 Thymeleaf 表达式由 Halo 解析；这里只验证本主题的静态资源。
-      if (!reference || reference.startsWith("#") || /[{}]|\[\[|\[\(/.test(reference)) continue;
-      const resourceUrl = new URL(reference, templateUrl);
+      // 页面 URL 由 Halo 路由决定，不能从模板路径推断相对资源地址。
       if (
-        resourceUrl.origin !== themeBase.origin ||
-        !resourceUrl.pathname.startsWith(themeBase.pathname)
+        !reference?.startsWith(`${themeBase.pathname}assets/`) ||
+        /[{}]|\[\[|\[\(/.test(reference)
       ) {
         continue;
       }
+      const resourceUrl = new URL(reference, themeBase);
       const resourcePath = decodeURIComponent(
         resourceUrl.pathname.slice(themeBase.pathname.length),
       );
@@ -127,5 +123,5 @@ for (const templateName of templateNames) {
 }
 
 console.log(
-  `Verified ${sourceNames.length} source template outputs, ${templateNames.length} HTML templates, the Halo page-layout contract, and static resource references.`,
+  `Verified ${sourceNames.length} source template outputs, ${templateNames.length} HTML templates, and theme assets (including the page-layout contract when provided).`,
 );

@@ -160,12 +160,7 @@ export default mergeConfig(config, { envDir: import.meta.dirname, plugins: [] })
   }
 
   const initialConfig = await readFile(join(directory, "vite.config.ts"), "utf8");
-  await mkdir(join(directory, "initial-config"));
-  await writeFile(join(directory, "initial-config/probe.ts"), "export const marker = ;\n");
-  await writeFile(
-    join(directory, "vite.config.ts"),
-    'import "./initial-config/probe";\n' + initialConfig,
-  );
+  await writeFile(join(directory, "vite.config.ts"), "export default ;\n");
 
   child = spawn(process.execPath, ["scripts/dev.mjs"], {
     cwd: directory,
@@ -201,17 +196,13 @@ export default mergeConfig(config, { envDir: import.meta.dirname, plugins: [] })
     await waitFor(async () => builds() > previousBuilds && (await predicate()));
   }
 
-  await t.test("启动时配置依赖解析失败后，单独修正依赖即可恢复", async () => {
+  await t.test("启动时根配置解析失败后，原子替换配置即可恢复", async () => {
     await waitFor(() => failures() > 0);
+    await writeFile(join(directory, "vite.config.ts.tmp"), initialConfig);
     await change(
-      () => writeFile(join(directory, "initial-config/probe.ts"), "export {};\n"),
+      () => rename(join(directory, "vite.config.ts.tmp"), join(directory, "vite.config.ts")),
       () => exists("templates/index.html"),
     );
-    await change(
-      () => writeFile(join(directory, "vite.config.ts"), initialConfig),
-      () => exists("templates/index.html"),
-    );
-    await rm(join(directory, "initial-config"), { recursive: true });
   });
 
   await t.test("片段修改以及嵌套页面增删自动生效", async () => {
@@ -333,51 +324,6 @@ export default mergeConfig(config, { envDir: import.meta.dirname, plugins: [] })
       },
       async () => !(await read("templates/index.html")).includes("data-env"),
     );
-  });
-
-  await t.test("导入的配置文件修改、原子替换和错误恢复自动生效", async () => {
-    const config = await read("vite.config.ts");
-    await mkdir(join(directory, "build-config"));
-    const helperPath = join(directory, "build-config/probe.ts");
-    await writeFile(helperPath, "export const marker = ;\n");
-    const initialFailures = failures();
-    await writeFile(
-      join(directory, "vite.config.ts"),
-      'import { marker } from "./build-config/probe";\n' +
-        config.replace(
-          "plugins: [",
-          `plugins: [{
-                name: "config-dependency-test",
-                transformIndexHtml(html) { return html + "<!-- config: " + marker + " -->"; }
-              },`,
-        ),
-    );
-    await waitFor(() => failures() > initialFailures);
-    await change(
-      () => writeFile(helperPath, 'export const marker = "initial";\n'),
-      async () => (await read("templates/index.html")).includes("<!-- config: initial -->"),
-    );
-    await change(
-      () => writeFile(helperPath, 'export const marker = "updated";\n'),
-      async () => (await read("templates/index.html")).includes("<!-- config: updated -->"),
-    );
-    await writeFile(helperPath + ".tmp", 'export const marker = "replaced";\n');
-    await change(
-      () => rename(helperPath + ".tmp", helperPath),
-      async () => (await read("templates/index.html")).includes("<!-- config: replaced -->"),
-    );
-    const previousFailures = failures();
-    await writeFile(helperPath, "export const marker = ;\n");
-    await waitFor(() => failures() > previousFailures);
-    await change(
-      () => writeFile(helperPath, 'export const marker = "recovered";\n'),
-      async () => (await read("templates/index.html")).includes("<!-- config: recovered -->"),
-    );
-    await change(
-      () => writeFile(join(directory, "vite.config.ts"), config),
-      async () => !(await read("templates/index.html")).includes("<!-- config:"),
-    );
-    await rm(join(directory, "build-config"), { recursive: true });
   });
 
   await t.test("构建过程中再次保存会串行补构建", async () => {
@@ -667,9 +613,14 @@ export default mergeConfig(config, { envDir: import.meta.dirname, plugins: [] })
     await rename(originalPath, renamedPath);
     await mkdir(join(directory, "src/custom/partials"), { recursive: true });
     await writeFile(join(directory, "src/custom/landing.html"), "<article>Custom page</article>\n");
+    await writeFile(
+      join(directory, "src/custom/component.html"),
+      '<my-card><template shadowrootmode="open"><slot name="actions"></slot></template></my-card>\n',
+    );
     await writeFile(join(directory, "src/custom/partials/card.html"), "<p>Private partial</p>\n");
     await build();
     await verify();
+    assert.match(await read("templates/custom/component.html"), /<slot name="actions"><\/slot>/);
     assert.equal(await exists("templates/modules/navigation.html"), false);
     assert.equal(await exists("templates/custom/partials/card.html"), false);
     for (const name of ["modules/nav-tree.html", "custom/landing.html"]) {
@@ -733,30 +684,51 @@ export default mergeConfig(config, { envDir: import.meta.dirname, plugins: [] })
       }
     }
   });
-  await t.test("资源检查解析嵌套相对路径并跳过外部和动态引用", async () => {
+  await t.test("资源检查仅验证主题资产，跳过站点相对路径、外部和动态引用", async () => {
     await mkdir(join(directory, "templates/probe"));
     const path = join(directory, "templates/probe/resources.html");
     const layout = await read("templates/layout.html");
-    const stylesheet = layout.match(/href="\/themes\/[^/]+\/(assets\/[^"]+\.css)"/)[1];
+    const stylesheet = layout.match(/href="(\/themes\/[^/]+\/assets\/[^"]+\.css)"/)[1];
     try {
       await writeFile(
         path,
-        `<link href="../${stylesheet}?v=1&amp;mode=test#fragment" rel="stylesheet">
+        `<link href="${stylesheet}?v=1&amp;mode=test#fragment" rel="stylesheet">
         <script src="https://cdn.example.invalid/example.js"></script>
+        <iframe src="../about"></iframe>
+        <img src="../images/site-owned.png">
         <img src="/site-owned/image.png">
         <img th:src="@{/assets/dynamic.png}">
         <img src="\${dynamicImage}">
-        <img src="assets/prototype.png" th:src="\${dynamicImage}">
-        <link href="assets/prototype.css" data-th-href="\${dynamicStylesheet}">
-        <!-- <img src="../assets/commented-out.png"> -->
-        <img alt='Example src="assets/missing.png"'>
-        <script>const example = '<img src="assets/missing.png">';</script>`,
+        <img src="/themes/theme-watch-test/assets/prototype.png" th:src="\${dynamicImage}">
+        <link href="/themes/theme-watch-test/assets/prototype.css" data-th-href="\${dynamicStylesheet}">
+        <!-- <img src="/themes/theme-watch-test/assets/commented-out.png"> -->
+        <img alt='Example src="/themes/theme-watch-test/assets/missing.png"'>
+        <script>const example = '<img src="/themes/theme-watch-test/assets/missing.png">';</script>`,
       );
       await verify();
-      await writeFile(path, '<script src="../assets/missing.js"></script>');
+      await writeFile(path, '<script src="/themes/theme-watch-test/assets/missing.js"></script>');
       await assert.rejects(verify, /Missing build output: templates\/assets\/missing\.js/);
     } finally {
       await rm(join(directory, "templates/probe"), { recursive: true });
+    }
+  });
+  await t.test("允许移除可选的插件页面布局，保留源码时仍要求生成产物", async () => {
+    const source = join(directory, "src/layout.html");
+    const output = join(directory, "templates/layout.html");
+    await rename(output, output + ".backup");
+    try {
+      await assert.rejects(verify, /Missing build output: templates\/layout\.html/);
+    } finally {
+      await rename(output + ".backup", output);
+    }
+    await rename(source, source + ".backup");
+    try {
+      await build();
+      await verify();
+      assert.equal(await exists("templates/layout.html"), false);
+    } finally {
+      await rename(source + ".backup", source);
+      await build();
     }
   });
   await t.test("没有静态资源入口的主题也可以通过产物检查", async () => {
@@ -789,12 +761,7 @@ export default mergeConfig(config, { envDir: import.meta.dirname, plugins: [] })
     await assert.rejects(verify, /template compilation error/);
     await writeFile(join(directory, "templates/layout.html"), layout);
     await mkdir(join(directory, "templates/error"), { recursive: true });
-    for (const content of [
-      '<include src="missing.html" />',
-      '<template><slot name="head"></slot></template>',
-    ]) {
-      await writeFile(join(directory, "templates/error/404.html"), content);
-      await assert.rejects(verify, /unprocessed include or slot tag/);
-    }
+    await writeFile(join(directory, "templates/error/404.html"), '<include src="missing.html" />');
+    await assert.rejects(verify, /unprocessed include tag/);
   });
 });

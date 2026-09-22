@@ -1,0 +1,21 @@
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 9d8e94c834508363bd6bb81c6efc98efed9aeb8c..d6590bce56ce837b718937d240619fa92f9d5cbc 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -15,6 +15,7 @@ function generateNode(node) {
+ }
+ //#endregion
+ //#region src/template-compiler/parser.ts
++const HTML_VOID_ELEMENTS = new Set(["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"]);
+ function parseTemplate(input) {
+ 	const root = {
+ 		type: "root",
+@@ -168,7 +169,7 @@ function parseOpenTag(openTag) {
+ 	return {
+ 		tagName: rawTagName.toLowerCase(),
+ 		attributes: parseAttributes(restParts.length > 0 ? inner.slice(rawTagName.length).trim() : ""),
+-		selfClosing: /\/\s*>$/.test(openTag)
++		selfClosing: HTML_VOID_ELEMENTS.has(rawTagName.toLowerCase()) || /\/\s*>$/.test(openTag)
+ 	};
+ }
+ function parseAttributes(attrSource) {

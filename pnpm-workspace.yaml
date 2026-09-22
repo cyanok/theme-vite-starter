@@ -13,3 +13,6 @@ peerDependencyRules:
 
 allowBuilds:
   esbuild: true
+
+patchedDependencies:
+  "@halo-dev/vite-plugin-halo-theme@1.0.3": patches/@halo-dev__vite-plugin-halo-theme@1.0.3.patch

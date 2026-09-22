@@ -19,8 +19,41 @@ import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
+import { haloThemePlugin } from "@halo-dev/vite-plugin-halo-theme";
+
 const run = promisify(execFile);
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
+
+await test("原生空元素保留相邻内容，并保持自闭合自定义标签兼容", () => {
+  const plugin = haloThemePlugin();
+  for (const tag of [
+    "area",
+    "base",
+    "br",
+    "col",
+    "embed",
+    "hr",
+    "img",
+    "input",
+    "link",
+    "meta",
+    "param",
+    "source",
+    "track",
+    "wbr",
+    "BR",
+    'input type="search" name="q"',
+    'img alt="a > b"',
+    "br /",
+    "halo:footer /",
+  ]) {
+    const html = `<section><p>BEFORE<${tag}>AFTER</p><aside>END</aside></section>`;
+    assert.equal(
+      plugin.transformIndexHtml.handler(html, { filename: join(projectRoot, "src/index.html") }),
+      html,
+    );
+  }
+});
 
 await test("主题开发监听与构建错误检查", { timeout: 60_000 }, async (t) => {
   const directory = await mkdtemp(join(tmpdir(), "halo-theme-build-"));
@@ -107,7 +140,7 @@ await test("主题开发监听与构建错误检查", { timeout: 60_000 }, async
       () =>
         writeFile(
           join(directory, "src/partials/layout.html"),
-          layout.replace('class="site-header"', 'class="site-header" data-watch="updated"'),
+          layout.replace('class="site-main"', 'class="site-main" data-watch="updated"'),
         ),
       async () => (await read("templates/index.html")).includes('data-watch="updated"'),
     );
@@ -305,12 +338,74 @@ await test("主题开发监听与构建错误检查", { timeout: 60_000 }, async
     }
   });
 
+  await t.test("开发构建接受非自闭合空元素且保留整页", async () => {
+    const index = await read("src/index.html");
+    for (const content of ["<p>BEFORE<br>AFTER</p>", '<input type="search" name="q">']) {
+      await change(
+        () =>
+          writeFile(
+            join(directory, "src/index.html"),
+            index.replace(/<\/include>\s*$/, content + "</include>"),
+          ),
+        async () => (await read("templates/index.html")).includes(content),
+      );
+      const page = await read("templates/index.html");
+      for (const expected of [
+        "<html",
+        "<head",
+        "<main",
+        "post-list",
+        "modules/header",
+        "modules/footer",
+      ]) {
+        assert.ok(page.includes(expected), expected);
+      }
+    }
+    await change(
+      () => writeFile(join(directory, "src/index.html"), index),
+      async () => !(await read("templates/index.html")).includes('name="q"'),
+    );
+  });
+
   // 停止监听后再验证产物，避免构建清空输出目录干扰故障注入。
   child.kill("SIGTERM");
   await closed;
   const verify = () => run(process.execPath, ["scripts/verify-build.mjs"], { cwd: directory });
+  await t.test("单次构建的页面和片段均接受非自闭合空元素", async () => {
+    const index = await read("src/index.html");
+    const layout = await read("src/partials/layout.html");
+    const build = () =>
+      run(
+        process.execPath,
+        ["--input-type=module", "-e", 'import { build } from "vite-plus"; await build();'],
+        { cwd: directory },
+      );
+    try {
+      await writeFile(
+        join(directory, "src/index.html"),
+        index.replace(
+          /<\/include>\s*$/,
+          '<p>BEFORE<br>AFTER</p><input type="search" name="q"></include>',
+        ),
+      );
+      await writeFile(
+        join(directory, "src/partials/layout.html"),
+        layout.replace("<slot />", "<p>PARTIAL<br>AFTER</p><slot />"),
+      );
+      await build();
+      const page = await read("templates/index.html");
+      assert.match(page, /BEFORE<br>AFTER/);
+      assert.match(page, /PARTIAL<br>AFTER/);
+      assert.match(page, /<input type="search" name="q">/);
+      await verify();
+    } finally {
+      await writeFile(join(directory, "src/index.html"), index);
+      await writeFile(join(directory, "src/partials/layout.html"), layout);
+      await build();
+    }
+  });
   await t.test("产物检查拒绝缺失的运行时模块", async () => {
-    for (const name of ["menu-tree", "category-tree"]) {
+    for (const name of ["menu-tree", "category-tree", "header", "footer"]) {
       const path = join(directory, `templates/modules/${name}.html`);
       await rename(path, path + ".backup");
       try {
@@ -318,6 +413,68 @@ await test("主题开发监听与构建错误检查", { timeout: 60_000 }, async
       } finally {
         await rename(path + ".backup", path);
       }
+    }
+  });
+  await t.test("产物检查拒绝仅剩空元素或缺少主体的页面", async () => {
+    const path = join(directory, "templates/index.html");
+    const index = await read("templates/index.html");
+    try {
+      for (const broken of [
+        "<br>",
+        '<input type="search" name="q">',
+        index.replace(/<main\b[\s\S]*?<\/main>/, ""),
+      ]) {
+        await writeFile(path, broken);
+        await assert.rejects(verify, /missing page structure/);
+      }
+    } finally {
+      await writeFile(path, index);
+    }
+  });
+  await t.test("共享片段允许无参括号和成对 Halo 标签，且保留页脚注入点", async () => {
+    const path = join(directory, "templates/modules/footer.html");
+    const footer = await read("templates/modules/footer.html");
+    try {
+      await writeFile(
+        path,
+        footer
+          .replace('th:fragment="footer"', 'th:fragment=" footer ( ) "')
+          .replace("<halo:footer />", "<halo:footer></halo:footer>"),
+      );
+      await verify();
+      await writeFile(path, footer.replace("<halo:footer />", ""));
+      await assert.rejects(verify, /missing halo:footer/);
+    } finally {
+      await writeFile(path, footer);
+    }
+  });
+  await t.test("布局契约接受等价空白和引号，拒绝缺失内容插入点", async () => {
+    const path = join(directory, "templates/layout.html");
+    const layout = await read("templates/layout.html");
+    try {
+      for (const declaration of [
+        'th:fragment="html(head, content)"',
+        "th:fragment=' html ( head , content ) '",
+      ]) {
+        await writeFile(path, layout.replace('th:fragment="html (head, content)"', declaration));
+        await verify();
+      }
+      await writeFile(path, layout.replace('th:replace="${content}"', 'th:insert="${ content }"'));
+      await verify();
+      await writeFile(
+        path,
+        layout.replaceAll(":: header}", ":: header()}").replaceAll(":: footer}", ":: footer()}"),
+      );
+      await verify();
+      await writeFile(path, layout.replace('th:replace="${content}"', ""));
+      await assert.rejects(verify, /missing content insertion/);
+      await writeFile(
+        path,
+        layout.replace('th:fragment="html (head, content)"', 'th:fragment="html(content, head)"'),
+      );
+      await assert.rejects(verify, /missing html\(head, content\) fragment/);
+    } finally {
+      await writeFile(path, layout);
     }
   });
   await t.test("产物检查拒绝缺失的已引用 JS 和 CSS", async () => {

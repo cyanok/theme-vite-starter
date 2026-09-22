@@ -2,7 +2,7 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { parseFragment } from "parse5";
+import { parse as parseHtml, parseFragment } from "parse5";
 import { parse } from "yaml";
 
 const templatesDirectory = new URL("../templates/", import.meta.url);
@@ -22,7 +22,12 @@ const pageNames = [
   "categories.html",
   "category.html",
 ];
-const moduleNames = ["modules/menu-tree.html", "modules/category-tree.html"];
+const moduleNames = [
+  "modules/menu-tree.html",
+  "modules/category-tree.html",
+  "modules/header.html",
+  "modules/footer.html",
+];
 const resourceElements = new Set([
   "script",
   "link",
@@ -34,14 +39,6 @@ const resourceElements = new Set([
   "input",
   "embed",
 ]);
-
-const requiredLayoutContent = [
-  'th:fragment="html (head, content)"',
-  'th:if="${head != null}"',
-  'th:replace="${head}"',
-  'th:replace="${content}"',
-  "<halo:footer />",
-];
 
 async function assertFileExists(fileName, referencedBy) {
   const outputPath = resolve(templatesPath, fileName);
@@ -63,17 +60,68 @@ function* elements(node) {
   if (node.content) yield* elements(node.content);
 }
 
+function attribute(node, name) {
+  return node.attrs?.find((attribute) => attribute.name === name)?.value;
+}
+
+function expression(node, name) {
+  return (attribute(node, `th:${name}`) ?? attribute(node, `data-th-${name}`))?.replace(/\s+/g, "");
+}
+
+function inserts(node, parameter) {
+  return ["replace", "insert"].some((name) => expression(node, name) === `\${${parameter}}`);
+}
+
+function assertPageStructure(document, templateName) {
+  const nodes = [...elements(document)];
+  for (const tagName of ["html", "head", "main"]) {
+    // parse5 会补全缺失的 html/head，必须确认源码中确实存在这些节点。
+    if (!nodes.some((node) => node.tagName === tagName && node.sourceCodeLocation)) {
+      throw new Error(`templates/${templateName} is missing page structure: ${tagName}`);
+    }
+  }
+  const main = nodes.find((node) => node.tagName === "main");
+  if (
+    !main.childNodes.some(
+      (node) => node.tagName || (node.nodeName === "#text" && node.value.trim()),
+    )
+  ) {
+    throw new Error(`templates/${templateName} is missing page content`);
+  }
+  for (const part of ["header", "footer"]) {
+    const reference = new RegExp(`^~\\{modules/${part}::${part}(?:\\(\\))?\\}$`);
+    if (!nodes.some((node) => reference.test(expression(node, "replace")))) {
+      throw new Error(`templates/${templateName} is missing shared ${part}`);
+    }
+  }
+}
+
+function assertLayoutContract(document) {
+  const nodes = [...elements(document)];
+  // 参数顺序属于契约；括号、逗号周围的空白和 HTML 引号风格不属于契约。
+  const fragment = nodes.find(
+    (node) =>
+      node.tagName === "html" &&
+      /^\s*html\s*\(\s*head\s*,\s*content\s*\)\s*$/.test(attribute(node, "th:fragment")),
+  );
+  if (!fragment) throw new Error("templates/layout.html is missing html(head, content) fragment");
+  const fragmentNodes = [...elements(fragment)];
+  const guardedHead = fragmentNodes.some(
+    (node) =>
+      expression(node, "if") === "${head!=null}" &&
+      [...elements(node)].some((child) => inserts(child, "head")),
+  );
+  if (!guardedHead) throw new Error("templates/layout.html is missing guarded head insertion");
+  const main = fragmentNodes.find((node) => node.tagName === "main");
+  if (!main || ![...elements(main)].some((node) => inserts(node, "content"))) {
+    throw new Error("templates/layout.html is missing content insertion in main");
+  }
+}
+
 for (const pageName of [...pageNames, ...moduleNames]) {
   await assertFileExists(pageName);
 }
 await assertFileExists("layout.html");
-
-const layout = await readFile(new URL("layout.html", templatesDirectory), "utf8");
-for (const expectedContent of requiredLayoutContent) {
-  if (!layout.includes(expectedContent)) {
-    throw new Error(`templates/layout.html is missing: ${expectedContent}`);
-  }
-}
 
 const templateNames = (await readdir(templatesDirectory, { recursive: true })).filter((name) =>
   name.endsWith(".html"),
@@ -88,6 +136,26 @@ for (const templateName of templateNames) {
   }
   if (/<!--\s*Partial error:/i.test(page)) {
     throw new Error(`templates/${templateName} contains a template compilation error`);
+  }
+  if (pageNames.includes(templateName) || templateName === "layout.html") {
+    const document = parseHtml(page, { sourceCodeLocationInfo: true });
+    assertPageStructure(document, templateName);
+    if (templateName === "layout.html") assertLayoutContract(document);
+  }
+  for (const part of ["header", "footer"]) {
+    if (templateName.replaceAll("\\", "/") !== `modules/${part}.html`) continue;
+    const nodes = [...elements(parseFragment(page))];
+    const signature = new RegExp(`^${part}(?:\\(\\))?$`);
+    const fragment = nodes.find(
+      (node) => node.tagName === part && signature.test(expression(node, "fragment")),
+    );
+    if (!fragment) throw new Error(`templates/${templateName} is missing ${part} fragment`);
+    if (
+      part === "footer" &&
+      ![...elements(fragment)].some((node) => node.tagName === "halo:footer")
+    ) {
+      throw new Error(`templates/${templateName} is missing halo:footer`);
+    }
   }
   const templateUrl = new URL(templateName.replaceAll("\\", "/"), themeBase);
   for (const element of elements(parseFragment(page))) {

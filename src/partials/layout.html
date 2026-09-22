@@ -9,20 +9,7 @@
     <script type="module" src="/js/main.ts"></script>
   </head>
   <body>
-    <header class="site-header">
-      <div class="container">
-        <a class="site-title" th:href="@{/}" th:text="${site.title}">Site Title</a>
-        <nav
-          class="site-nav"
-          aria-label="Main navigation"
-          th:with="menu = ${menuFinder.getPrimary()}"
-        >
-          <th:block
-            th:replace="~{modules/menu-tree :: tree(menuItems=${menu.menuItems})}"
-          ></th:block>
-        </nav>
-      </div>
-    </header>
+    <header th:replace="~{modules/header :: header}"></header>
 
     <main class="site-main">
       <div class="container">
@@ -30,11 +17,6 @@
       </div>
     </main>
 
-    <footer class="site-footer">
-      <div class="container">
-        <p th:text="${theme.config.basic.custom_footer ?: site.title}"></p>
-        <halo:footer />
-      </div>
-    </footer>
+    <footer th:replace="~{modules/footer :: footer}"></footer>
   </body>
 </html>

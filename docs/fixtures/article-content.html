@@ -1,0 +1,67 @@
+<!-- 将此片段粘贴到文章或独立页面编辑器的 HTML 模式，保留宽高属性和表格内联宽度。 -->
+<h2>宽图与视频</h2>
+<p>图片声明为 1600 × 900，窄屏中应保持 16:9 比例并完整显示。</p>
+<img
+  src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1600' height='900' viewBox='0 0 1600 900'%3E%3Crect width='1600' height='900' fill='%23dbeafe'/%3E%3Ccircle cx='800' cy='450' r='300' fill='%230070f3'/%3E%3C/svg%3E"
+  alt="浅蓝色宽图，中间的蓝色圆形应保持正圆"
+  width="1600"
+  height="900"
+/>
+<p>视频尺寸为 1280 × 720。验证播放时为 video 添加测试站附件的 src。</p>
+<video
+  controls
+  preload="metadata"
+  width="1280"
+  height="720"
+  poster="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1280' height='720' viewBox='0 0 1280 720'%3E%3Crect width='1280' height='720' fill='%23e2e8f0'/%3E%3Ccircle cx='640' cy='360' r='240' fill='%23475569'/%3E%3C/svg%3E"
+>
+  浏览器不支持视频播放。
+</video>
+
+<h2>宽表格</h2>
+<p>表格固定为 1200 像素宽，应仅在表格区域内横向滚动，最右侧的合计列应可访问。</p>
+<table style="width: 1200px; border-collapse: collapse">
+  <caption>
+    季度容量核对
+  </caption>
+  <thead>
+    <tr>
+      <th scope="col">项目</th>
+      <th scope="col">一月</th>
+      <th scope="col">二月</th>
+      <th scope="col">三月</th>
+      <th scope="col">四月</th>
+      <th scope="col">五月</th>
+      <th scope="col">六月</th>
+      <th scope="col">合计（最右列）</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th scope="row">附件数量</th>
+      <td>100</td>
+      <td>200</td>
+      <td>300</td>
+      <td>400</td>
+      <td>500</td>
+      <td>600</td>
+      <td>2100</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>固定宽度嵌入</h2>
+<p>嵌入页保持 960 × 240 的尺寸，应在局部滚动区域中显示，右侧文字应可访问。</p>
+<iframe
+  title="宽嵌入示例"
+  width="960"
+  height="240"
+  sandbox=""
+  srcdoc="<html lang='zh-CN'><body style='margin:0;background:#f1f5f9'><p style='display:flex;justify-content:space-between;padding:24px'><span>嵌入内容左侧</span><span>嵌入内容最右侧</span></p></body></html>"
+></iframe>
+
+<h2>长代码与长文本</h2>
+<pre><code>const longCodeLine = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";</code></pre>
+<p>
+  0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ
+</p>

@@ -1,0 +1,6 @@
+<footer class="site-footer" th:fragment="footer">
+  <div class="container">
+    <p th:text="${theme.config.basic.custom_footer ?: site.title}"></p>
+    <halo:footer />
+  </div>
+</footer>

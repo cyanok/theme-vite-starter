@@ -145,8 +145,20 @@ a:hover {
   overflow-wrap: normal;
 }
 
-.article-content img {
+.article-content img,
+.article-content video {
   max-width: 100%;
+  height: auto;
+}
+
+.article-content-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.article-content-scroll:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
 }
 
 .article-tags,

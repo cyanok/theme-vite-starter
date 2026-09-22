@@ -1,16 +1,40 @@
 diff --git a/dist/index.mjs b/dist/index.mjs
-index 9d8e94c834508363bd6bb81c6efc98efed9aeb8c..d6590bce56ce837b718937d240619fa92f9d5cbc 100644
+index 9d8e94c834508363bd6bb81c6efc98efed9aeb8c..3225ee4e415a9fc686c75de3d8cb4b272e5e973f 100644
 --- a/dist/index.mjs
 +++ b/dist/index.mjs
-@@ -15,6 +15,7 @@ function generateNode(node) {
+@@ -15,6 +15,8 @@ function generateNode(node) {
  }
  //#endregion
  //#region src/template-compiler/parser.ts
 +const HTML_VOID_ELEMENTS = new Set(["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"]);
++const HTML_TEXT_ELEMENTS = new Set(["script", "style", "textarea", "title"]);
  function parseTemplate(input) {
  	const root = {
  		type: "root",
-@@ -168,7 +169,7 @@ function parseOpenTag(openTag) {
+@@ -32,6 +34,22 @@ function parseTemplate(input) {
+ 		root.children.push(node);
+ 	};
+ 	while (cursor < input.length) {
++		const textTag = stack[stack.length - 1]?.tagName;
++		if (HTML_TEXT_ELEMENTS.has(textTag)) {
++			const closingTag = new RegExp(`</${textTag}\\s*>`, "gi");
++			closingTag.lastIndex = cursor;
++			const match = closingTag.exec(input);
++			if (!match) throw new Error(`Unclosed <${textTag}> tag`);
++			if (match.index > cursor) {
++				pushNode({
++					type: "text",
++					value: input.slice(cursor, match.index),
++					loc: createRange(input, cursor, match.index)
++				});
++				cursor = match.index;
++				continue;
++			}
++		}
+ 		if (input.startsWith("<!--", cursor)) {
+ 			const endIndex = input.indexOf("-->", cursor + 4);
+ 			const end = endIndex === -1 ? input.length : endIndex + 3;
+@@ -168,7 +186,7 @@ function parseOpenTag(openTag) {
  	return {
  		tagName: rawTagName.toLowerCase(),
  		attributes: parseAttributes(restParts.length > 0 ? inner.slice(rawTagName.length).trim() : ""),
@@ -19,3 +43,13 @@ index 9d8e94c834508363bd6bb81c6efc98efed9aeb8c..d6590bce56ce837b718937d240619fa9
  	};
  }
  function parseAttributes(attrSource) {
+@@ -572,8 +590,7 @@ function isHtmlTemplateFile(fileName) {
+ 	return fileName.endsWith(HTML_EXTENSION);
+ }
+ function toEntryName(relativeHtmlPath) {
+-	const htmlPathWithoutExtension = relativeHtmlPath.replace(/\\/g, "/").slice(0, -5);
+-	return (htmlPathWithoutExtension.endsWith("/index") ? htmlPathWithoutExtension.slice(0, -6) || "index" : htmlPathWithoutExtension).replace(/\//g, "_");
++	return relativeHtmlPath.replace(/\\/g, "/").slice(0, -5);
+ }
+ function logEntryScanError(directory, error) {
+ 	console.warn(`${PLUGIN_LOG_PREFIX} Failed to scan template directory: ${directory}`);

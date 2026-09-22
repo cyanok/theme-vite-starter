@@ -92,7 +92,10 @@ for (const templateName of templateNames) {
     new URL(templateName.replaceAll("\\", "/"), templatesDirectory),
     "utf8",
   );
-  if (/<\/?(?:include|slot)(?:\s|\/?>)/i.test(page)) {
+  const document = parseFragment(page);
+  if (
+    [...elements(document)].some((node) => node.tagName === "include" || node.tagName === "slot")
+  ) {
     throw new Error(`templates/${templateName} contains an unprocessed include or slot tag`);
   }
   if (/<!--\s*Partial error:/i.test(page)) {
@@ -100,7 +103,7 @@ for (const templateName of templateNames) {
   }
   if (templateName === "layout.html") assertLayoutContract(parseHtml(page));
   const templateUrl = new URL(templateName.replaceAll("\\", "/"), themeBase);
-  for (const element of elements(parseFragment(page))) {
+  for (const element of elements(document)) {
     if (!resourceElements.has(element.tagName)) continue;
     const attributes = new Map(element.attrs.map(({ name, value }) => [name, value]));
     for (const name of ["src", "href"]) {

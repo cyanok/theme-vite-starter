@@ -41,6 +41,14 @@ a:hover {
   border: 0;
 }
 
+.site-title,
+.site-nav,
+.post-title,
+.article-title,
+.post-nav {
+  overflow-wrap: anywhere;
+}
+
 .site-header {
   border-bottom: 1px solid #eee;
   padding: 1rem 0;

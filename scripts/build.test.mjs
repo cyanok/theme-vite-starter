@@ -24,6 +24,64 @@ import { haloThemePlugin } from "@halo-dev/vite-plugin-halo-theme";
 const run = promisify(execFile);
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 
+const inlineScriptCases = [
+  '<script>if (1 < 2) console.log("comparison");</script>',
+  '<script>const html = "<div>";</script>',
+  '<script type="application/ld+json">{"description":"<div>JSON content"}</script>',
+  '<script th:inline="javascript">const value = /*[[${site.title}]]*/ "<div>fallback";</script>',
+  '<SCRIPT>const closingPrefix = "</scripture>";</ScRiPt >',
+];
+
+await test("内联脚本中的比较和 HTML 字符串保留原文及整页内容", () => {
+  const plugin = haloThemePlugin();
+  for (const script of [
+    ...inlineScriptCases,
+    "<script>const partial = '<include src=\"missing.html\" />';</script>",
+    '<script><!-- const html = "<div>"; //--></script>',
+    "<script></script><script>if (1 < 2) console.log(1);</script>",
+  ]) {
+    const html = `<html><head><title>BEFORE</title>${script}</head><body><p>AFTER</p></body></html>`;
+    assert.equal(
+      plugin.transformIndexHtml.handler(html, { filename: join(projectRoot, "src/index.html") }),
+      html,
+    );
+  }
+  assert.throws(
+    () =>
+      plugin.transformIndexHtml.handler("<script>if (1 < 2) console.log(1);", {
+        filename: join(projectRoot, "src/index.html"),
+      }),
+    /Unclosed <script> tag/,
+  );
+});
+
+await test("样式、文本域和标题中的特殊文本保留原文及相邻内容", () => {
+  const plugin = haloThemePlugin();
+  for (const content of [
+    '<style>.probe::before { content: "<"; }</style>',
+    '<style>.probe::after { content: "<include src=missing.html>"; }</style>',
+    "<textarea>if (a < b) hello</textarea>",
+    '<textarea><include src="missing.html" /> &amp; </textareax></textarea>',
+    "<title>A < B &amp; C</title>",
+    "<TEXTAREA></TeXtArEa ><TITLE>A < B</TiTlE >",
+  ]) {
+    const html = `<section>BEFORE${content}<p>AFTER</p></section>`;
+    assert.equal(
+      plugin.transformIndexHtml.handler(html, { filename: join(projectRoot, "src/index.html") }),
+      html,
+    );
+  }
+  for (const tag of ["style", "textarea", "title"]) {
+    assert.throws(
+      () =>
+        plugin.transformIndexHtml.handler(`<${tag}>unclosed`, {
+          filename: join(projectRoot, "src/index.html"),
+        }),
+      new RegExp(`Unclosed <${tag}> tag`),
+    );
+  }
+});
+
 await test("原生空元素保留相邻内容，并保持自闭合自定义标签兼容", () => {
   const plugin = haloThemePlugin();
   for (const tag of [
@@ -82,7 +140,7 @@ export default mergeConfig(config, { envDir: import.meta.dirname, plugins: [] })
 `,
     "src/index.html": '<include src="fixture.html"><p>BUILD_CONTENT</p></include>\n',
     "src/partials/fixture.html": `<!doctype html>
-<html><head><title>Build fixture</title><script type="module" src="/assets/js/probe.ts"></script></head>
+<html><head><title>Build fixture</title><slot name="head" /><script type="module" src="/assets/js/probe.ts"></script></head>
 <body><section data-watch="initial"><slot /></section></body></html>
 `,
     "src/layout.html": `<!doctype html>
@@ -422,6 +480,73 @@ export default mergeConfig(config, { envDir: import.meta.dirname, plugins: [] })
     );
   });
 
+  await t.test("开发构建保留 head 插槽中的内联脚本和页面正文", async () => {
+    const index = await read("src/index.html");
+    for (const script of inlineScriptCases) {
+      await change(
+        () =>
+          writeFile(
+            join(directory, "src/index.html"),
+            index.replace("<p>", `<template name="head">${script}</template><p>`),
+          ),
+        async () => (await read("templates/index.html")).includes(script),
+      );
+      const page = await read("templates/index.html");
+      assert.ok(page.includes("<html>"));
+      assert.ok(page.includes("<title>Build fixture</title>"));
+      assert.ok(page.includes("<p>BUILD_CONTENT</p>"));
+      assert.ok(page.includes("</body></html>"));
+    }
+    await change(
+      () => writeFile(join(directory, "src/index.html"), index),
+      async () => !(await read("templates/index.html")).includes("<script>"),
+    );
+  });
+
+  await t.test("开发构建保留样式、标题、文本域和完整页面", async () => {
+    const index = await read("src/index.html");
+    const layout = await read("src/partials/fixture.html");
+    const content = '<textarea>if (a < b) hello <include src="missing.html" /></textarea>';
+    try {
+      await change(
+        async () => {
+          await writeFile(
+            join(directory, "src/partials/fixture.html"),
+            layout.replace("<title>Build fixture</title>", "<title>A < B &amp; C</title>"),
+          );
+          await writeFile(
+            join(directory, "src/index.html"),
+            index
+              .replace(
+                "<p>",
+                '<template name="head"><style>.probe::before { content: "<"; }</style></template><p>',
+              )
+              .replace("</include>", content + "<p>AFTER_TEXTAREA</p></include>"),
+          );
+        },
+        async () => (await read("templates/index.html")).includes(content),
+      );
+      const page = await read("templates/index.html");
+      for (const expected of [
+        "<html>",
+        "<title>A < B &amp; C</title>",
+        "BUILD_CONTENT",
+        "AFTER_TEXTAREA",
+        "</body></html>",
+      ]) {
+        assert.ok(page.includes(expected), expected);
+      }
+    } finally {
+      await change(
+        async () => {
+          await writeFile(join(directory, "src/index.html"), index);
+          await writeFile(join(directory, "src/partials/fixture.html"), layout);
+        },
+        async () => !(await read("templates/index.html")).includes("AFTER_TEXTAREA"),
+      );
+    }
+  });
+
   // 停止监听后再验证产物，避免构建清空输出目录干扰故障注入。
   child.kill("SIGTERM");
   await closed;
@@ -432,6 +557,83 @@ export default mergeConfig(config, { envDir: import.meta.dirname, plugins: [] })
       ["--input-type=module", "-e", 'import { build } from "vite-plus"; await build();'],
       { cwd: directory },
     );
+  await t.test("单次构建及产物检查保留特殊文本、脚本字符串和注释", async () => {
+    const index = await read("src/index.html");
+    const head =
+      '<title>A < B &amp; C</title><style>.probe::before { content: "<"; }</style><script>const example = "<slot />";</script>';
+    const body =
+      '<textarea>if (a < b) hello <include src="missing.html" /></textarea><!-- Example: <include src="layout.html"> --><p>AFTER_TEXTAREA</p>';
+    try {
+      await writeFile(
+        join(directory, "src/index.html"),
+        index
+          .replace("<p>", `<template name="head">${head}</template><p>`)
+          .replace("</include>", body + "</include>"),
+      );
+      await build();
+      const page = await read("templates/index.html");
+      for (const expected of [
+        "<html>",
+        "<title>A < B &amp; C</title>",
+        '<script>const example = "<slot />";</script>',
+        body,
+        "BUILD_CONTENT",
+        "</body></html>",
+      ]) {
+        assert.ok(page.includes(expected), expected);
+      }
+      await verify();
+    } finally {
+      await writeFile(join(directory, "src/index.html"), index);
+      await build();
+    }
+  });
+
+  await t.test("目录、下划线和 index 页面不发生入口名称碰撞", async () => {
+    const pages = ["custom/card.html", "custom_card.html", "custom.html", "custom/index.html"];
+    await mkdir(join(directory, "src/custom"), { recursive: true });
+    try {
+      for (const name of pages) {
+        await writeFile(join(directory, "src", name), `<p>${name}</p>\n`);
+      }
+      await build();
+      await verify();
+      for (const name of pages) {
+        assert.ok((await read(`templates/${name}`)).includes(`<p>${name}</p>`), name);
+      }
+    } finally {
+      for (const name of pages) await rm(join(directory, "src", name));
+      await build();
+    }
+  });
+
+  await t.test("单次构建保留页面与公共片段的内联脚本和完整内容", async () => {
+    const index = await read("src/index.html");
+    const layout = await read("src/partials/fixture.html");
+    try {
+      await writeFile(
+        join(directory, "src/index.html"),
+        index.replace("<p>", `<template name="head">${inlineScriptCases.join("\n")}</template><p>`),
+      );
+      await writeFile(
+        join(directory, "src/partials/fixture.html"),
+        layout.replace("<slot />", `${inlineScriptCases[0]}<slot />`),
+      );
+      await build();
+      const page = await read("templates/index.html");
+      for (const script of inlineScriptCases) assert.ok(page.includes(script), script);
+      assert.equal(page.split(inlineScriptCases[0]).length - 1, 2);
+      assert.ok(page.includes("<html>"));
+      assert.ok(page.includes("<title>Build fixture</title>"));
+      assert.ok(page.includes("<p>BUILD_CONTENT</p>"));
+      assert.ok(page.includes("</body></html>"));
+      await verify();
+    } finally {
+      await writeFile(join(directory, "src/index.html"), index);
+      await writeFile(join(directory, "src/partials/fixture.html"), layout);
+      await build();
+    }
+  });
   await t.test("单次构建的页面和片段均接受非自闭合空元素", async () => {
     const index = await read("src/index.html");
     const layout = await read("src/partials/fixture.html");
@@ -587,7 +789,12 @@ export default mergeConfig(config, { envDir: import.meta.dirname, plugins: [] })
     await assert.rejects(verify, /template compilation error/);
     await writeFile(join(directory, "templates/layout.html"), layout);
     await mkdir(join(directory, "templates/error"), { recursive: true });
-    await writeFile(join(directory, "templates/error/404.html"), '<include src="missing.html" />');
-    await assert.rejects(verify, /unprocessed include or slot tag/);
+    for (const content of [
+      '<include src="missing.html" />',
+      '<template><slot name="head"></slot></template>',
+    ]) {
+      await writeFile(join(directory, "templates/error/404.html"), content);
+      await assert.rejects(verify, /unprocessed include or slot tag/);
+    }
   });
 });

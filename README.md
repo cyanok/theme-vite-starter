@@ -15,7 +15,7 @@
 先准备可访问的 Halo 开发实例，并关闭 Thymeleaf 缓存；使用 Docker 时设置 `SPRING_THYMELEAF_CACHE=false`。环境搭建详见 [Halo 开发环境准备](https://docs.halo.run/developer-guide/theme/prepare)。
 
 1. 基于此模板创建仓库并克隆到本地。
-2. 修改 `theme.yaml` 中的主题 ID（`metadata.name`）、显示名称、作者和仓库地址；为主题设置独立的 `spec.settingName` 和 `spec.configMapName`，并让 `settings.yaml` 的 `metadata.name` 与 `spec.settingName` 一致。
+2. 修改 `theme.yaml` 中的主题 ID（`metadata.name`）、显示名称、作者、项目链接和版本；为主题设置独立的 `spec.settingName` 和 `spec.configMapName`，并让 `settings.yaml` 的 `metadata.name` 与 `spec.settingName` 一致。
 3. 将项目目录放入 Halo 工作目录的 `themes/<主题 ID>/`，目录名须与 `metadata.name` 一致；使用 Docker 时，将项目目录挂载到容器内对应的主题目录。
 4. 在项目根目录安装依赖并启动监听构建：
 
@@ -26,7 +26,7 @@
 
 5. 首次构建完成后，在 Halo 控制台的「主题」→「切换主题」→「未安装」中安装并启用主题，然后访问 Halo 站点预览。
 
-`pnpm dev` 监听源码、公共资源、环境变量文件和构建配置（包括配置导入的本地文件），自动更新 `templates/`。页面由 Halo 渲染，查看改动时需手动刷新浏览器。
+`pnpm dev` 监听源码、公共资源、环境变量文件和构建配置（包括配置导入的本地文件），自动更新 `templates/`。该命令不启动 Vite 开发服务器，预览地址使用 Halo 站点地址；页面由 Halo 渲染，查看改动时需手动刷新浏览器。构建失败后，修正文件并保存即可自动重试。
 
 修改 `theme.yaml` 或 `settings.yaml` 后，还需在 Halo 控制台的主题详情中点击「重载主题配置」使配置生效。
 
@@ -65,6 +65,22 @@
 
 两种布局通过 `src/modules/header.html` 和 `src/modules/footer.html` 共享页头、导航与页脚，由 Halo 在运行时解析。页头和页脚内容统一在这两个片段中维护。
 
+`src/` 下的 `.html` 文件自动作为构建入口，并保留相对目录输出到 `templates/`；任意层级的 `partials/` 目录都只用于构建期复用，不单独输出。`modules/` 中的运行时片段需要保留在产物中，不要移入 `partials/`。
+
+主题页面可参考 `src/index.html`，使用以下结构复用公共布局：
+
+```html
+<include src="layout.html">
+  <template name="head">
+    <title th:text="${site.title}">Site Title</title>
+  </template>
+
+  <h1 th:text="${site.title}">Site Title</h1>
+</include>
+```
+
+这里的 `layout.html` 由构建插件从 `src/partials/` 中查找；`template name="head"` 替换布局的具名插槽，其余内容填入默认插槽。新增模板的文件名与访问方式需遵循 [Halo 模板路由映射](https://docs.halo.run/developer-guide/theme/template-route-mapping)，添加 HTML 文件本身不会注册新的站点路由；文章、独立页面和分类的自定义模板需在 `theme.yaml` 的 `spec.customTemplates` 中声明。
+
 共享布局中的资源入口使用以 `/` 开头、相对于 `src/` 根目录的路径，如 `/assets/js/main.ts`。
 
 `src/assets/js/main.ts` 导入 `src/assets/css/main.css` 并处理正文宽内容。页面需要独立脚本时，将脚本放入 `src/assets/js/`，并在该页面的 `head` 模板中添加对应的模块入口。
@@ -83,9 +99,14 @@
 | `pnpm verify:build` | 检查已有构建产物的完整性与布局契约                   |
 | `pnpm build`        | 检查、构建并打包主题 ZIP                             |
 
-单独运行 `pnpm verify:build` 前，先执行 `pnpm build-only`；完整检查并打包当前主题时，直接运行 `pnpm build`。Thymeleaf 表达式、插件集成和最终页面效果仍需在 Halo 中验证。
+单独运行 `pnpm verify:build` 前，先执行 `pnpm build-only`。根据改动范围选择验证方式：
 
-依赖安装会自动应用 `pnpm-workspace.yaml` 中声明的插件补丁。升级主题构建插件时，检查 `patches/` 中的补丁是否仍适用，并运行 `pnpm test:build` 验证构建流程。
+- 仅修改文档：运行 `pnpm check`。
+- 修改主题源码、资源或元数据：运行 `pnpm build`，完成静态检查、TypeScript 检查、构建、产物验证和打包。
+- 修改构建脚本、配置、依赖或补丁：额外运行 `pnpm test:build`。该测试使用临时夹具，`pnpm build` 不会自动执行它。
+- 修改 Thymeleaf 表达式、布局、样式或插件集成：还需按 [运行时冒烟清单](docs/halo-smoke-test.md) 在 Halo 中检查受影响的页面；自动化检查不验证最终渲染效果。
+
+依赖安装会自动应用 `pnpm-workspace.yaml` 中声明的插件补丁，用于正确处理 HTML 原生空元素，以及 `script`、`style`、`textarea` 和 `title` 内的文本，并避免不同模板路径的构建入口名称冲突。升级主题构建插件时，检查 `patches/` 中的补丁是否仍适用；确认上游已覆盖对应行为并通过构建流程测试后，再移除补丁。
 
 ## 打包与发布
 
@@ -101,5 +122,7 @@ pnpm build
 
 - [CI 检查](.github/workflows/ci.yaml)：执行静态检查、构建流程测试、构建、产物验证和 ZIP 打包。
 - [Release 发布](.github/workflows/cd.yaml)：发布 GitHub Release 时触发，使用 Halo 共享工作流构建并发布主题，默认跳过应用市场发布；需要发布到应用市场时，按工作流注释配置发布选项。
+
+发布前更新 `theme.yaml` 的 `spec.version`，GitHub Release 标签不会自动回写主题版本。调整 Node.js 或 pnpm 版本时，同步检查 `.node-version`、`package.json` 与 Release 工作流中的显式版本设置。
 
 更多主题开发用法见 [Halo 主题开发文档](https://docs.halo.run/developer-guide/theme/)。

@@ -175,7 +175,7 @@ overrides:
   vite@*: npm:@voidzero-dev/vite-plus-core@0.3.3
 
 patchedDependencies:
-  '@halo-dev/vite-plugin-halo-theme@1.0.3': 449a88d746214565e997283a449ea929525bfb47695793fddb6b37a05d734340
+  '@halo-dev/vite-plugin-halo-theme@1.0.3': f3abdd8fa8d1d0a60faa14aa23ca3eeabf76eb4beca188ba616645616daa90b9
 
 importers:
 
@@ -186,7 +186,7 @@ importers:
         version: 1.1.1
       '@halo-dev/vite-plugin-halo-theme':
         specifier: 1.0.3
-        version: 1.0.3(patch_hash=449a88d746214565e997283a449ea929525bfb47695793fddb6b37a05d734340)(@voidzero-dev/vite-plus-core@0.3.3(@types/node@24.13.3)(typescript@6.0.3)(yaml@2.8.3))(axios@1.20.0(debug@4.4.3))
+        version: 1.0.3(patch_hash=f3abdd8fa8d1d0a60faa14aa23ca3eeabf76eb4beca188ba616645616daa90b9)(@voidzero-dev/vite-plus-core@0.3.3(@types/node@24.13.3)(typescript@6.0.3)(yaml@2.8.3))(axios@1.20.0(debug@4.4.3))
       '@types/node':
         specifier: ^24.12.0
         version: 24.13.3
@@ -1653,7 +1653,7 @@ snapshots:
       js-yaml: 4.3.2
       path: 0.12.7
 
-  '@halo-dev/vite-plugin-halo-theme@1.0.3(patch_hash=449a88d746214565e997283a449ea929525bfb47695793fddb6b37a05d734340)(@voidzero-dev/vite-plus-core@0.3.3(@types/node@24.13.3)(typescript@6.0.3)(yaml@2.8.3))(axios@1.20.0(debug@4.4.3))':
+  '@halo-dev/vite-plugin-halo-theme@1.0.3(patch_hash=f3abdd8fa8d1d0a60faa14aa23ca3eeabf76eb4beca188ba616645616daa90b9)(@voidzero-dev/vite-plus-core@0.3.3(@types/node@24.13.3)(typescript@6.0.3)(yaml@2.8.3))(axios@1.20.0(debug@4.4.3))':
     dependencies:
       '@halo-dev/api-client': 2.23.0(axios@1.20.0(debug@4.4.3))
       vite: '@voidzero-dev/vite-plus-core@0.3.3(@types/node@24.13.3)(typescript@6.0.3)(yaml@2.8.3)'

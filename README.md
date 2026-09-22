@@ -22,9 +22,15 @@
 
 5. 首次构建完成后，在 Halo 控制台的「主题」→「切换主题」→「未安装」中安装并启用主题，然后访问 Halo 站点预览。
 
-`pnpm dev` 监听源码、公共资源和构建配置，自动更新 `templates/`。修改片段或增删页面无需重启；构建失败后，修正并保存即可重试。页面由 Halo 渲染，浏览器需手动刷新。
+`pnpm dev` 监听源码、公共资源、环境变量文件和构建配置（包括配置导入的本地文件），自动更新 `templates/`。页面由 Halo 渲染，查看改动时需手动刷新浏览器。
 
 开发环境需关闭 Thymeleaf 缓存；使用 Docker 时设置 `SPRING_THYMELEAF_CACHE=false`，并将项目目录挂载到容器内对应的主题目录。详见 [Halo 开发环境准备](https://docs.halo.run/developer-guide/theme/prepare)。
+
+## 环境变量
+
+环境变量文件放在项目根目录。`pnpm dev` 和 `pnpm build` 默认使用 Vite 的生产构建模式，读取 `.env`、`.env.local`、`.env.production` 和 `.env.production.local`。
+
+浏览器代码通过 `import.meta.env.VITE_*` 访问以 `VITE_` 开头的变量。这些值会写入构建产物，只用于公开配置；本地专用配置可放入 Git 已忽略的 `*.local` 文件。
 
 ## 目录与布局
 
@@ -48,7 +54,7 @@
 - `src/partials/layout.html`：主题页面的公共布局，通过 `<include>` / `<slot>` 在构建时展开。
 - `src/layout.html`：构建为 `templates/layout.html`，提供 `html(head, content)` 片段，供插件前台页面复用主题布局，详见 [Halo 页面布局契约](https://docs.halo.run/developer-guide/theme/page-layout)。
 
-共享布局中的资源入口应使用相对于 `src/` 根目录的路径（如 `/js/main.ts`），便于 `src/error/404.html` 等嵌套页面复用。
+共享布局中的资源入口使用相对于 `src/` 根目录的路径，如 `/js/main.ts`。
 
 ## 常用命令
 
@@ -57,10 +63,12 @@
 | `pnpm dev`          | 监听变化并持续构建                      |
 | `pnpm check`        | 检查格式与代码问题                      |
 | `pnpm fix`          | 自动修复格式与可修复的代码问题          |
-| `pnpm test:build`   | 验证开发监听、错误恢复和产物检查        |
+| `pnpm test:build`   | 在临时目录验证开发监听与构建流程        |
 | `pnpm build-only`   | 执行 TypeScript 检查并生成 `templates/` |
-| `pnpm verify:build` | 检查模板、布局契约和静态资源            |
+| `pnpm verify:build` | 检查已有构建产物的完整性与布局契约      |
 | `pnpm build`        | 检查、构建并打包主题 ZIP                |
+
+单独运行 `pnpm verify:build` 前，先执行 `pnpm build-only` 生成构建产物。
 
 ## 打包与发布
 
@@ -68,10 +76,13 @@
 pnpm build
 ```
 
-命令会先完成静态检查、构建和产物验证，再生成 `dist/<主题 ID>-<版本>.zip`，可在 Halo 控制台上传安装。
+主题 ID 和版本由 `theme.yaml` 中的 `metadata.name` 与 `spec.version` 定义。命令完成静态检查、构建和产物验证后，生成 `dist/<主题 ID>-<版本>.zip`，可在 Halo 控制台上传安装。
 
 发布前请在 Halo 2.26+ 中验证主要页面、空状态及插件页面布局。
 
-项目提供 [CI 检查](.github/workflows/ci.yaml)和 [Release 发布工作流](.github/workflows/cd.yaml)；后者调用同一打包命令，按需调整发布配置。
+项目提供两套工作流：
+
+- [CI 检查](.github/workflows/ci.yaml)：执行静态检查、构建流程测试、构建、产物验证和 ZIP 打包。
+- [Release 发布](.github/workflows/cd.yaml)：发布 GitHub Release 时触发，使用 Halo 共享工作流构建并发布主题；使用前按仓库需要调整发布配置。
 
 更多主题开发用法见 [Halo 主题开发文档](https://docs.halo.run/developer-guide/theme/)。

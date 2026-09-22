@@ -1,4 +1,5 @@
 {
+  "private": true,
   "type": "module",
   "scripts": {
     "build": "pnpm check && pnpm build-only && pnpm verify:build && theme-package",
@@ -15,9 +16,11 @@
     "@halo-dev/theme-package-cli": "1.1.1",
     "@halo-dev/vite-plugin-halo-theme": "1.0.3",
     "@types/node": "^24.12.0",
+    "parse5": "^8.0.1",
     "typescript": "^6.0.3",
     "vite": "catalog:",
-    "vite-plus": "catalog:"
+    "vite-plus": "catalog:",
+    "yaml": "^2.8.3"
   },
   "engines": {
     "node": ">=24.11.0",

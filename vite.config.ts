@@ -1,7 +1,10 @@
+import { fileURLToPath } from "node:url";
+
 import { haloThemePlugin } from "@halo-dev/vite-plugin-halo-theme";
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
+  envDir: fileURLToPath(new URL(".", import.meta.url)),
   plugins: [
     haloThemePlugin(),
     {

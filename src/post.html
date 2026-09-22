@@ -4,7 +4,7 @@
     <script type="module" src="./js/post.ts"></script>
   </template>
 
-  <article>
+  <article th:with="cursor = ${postFinder.cursor(post.metadata.name)}">
     <header class="article-header">
       <h1 class="article-title" th:text="${post.spec.title}"></h1>
       <div class="article-meta">
@@ -32,7 +32,11 @@
       ></a>
     </div>
 
-    <nav class="post-nav" th:with="cursor = ${postFinder.cursor(post.metadata.name)}">
+    <nav
+      class="post-nav"
+      aria-label="Post navigation"
+      th:if="${cursor.hasPrevious() || cursor.hasNext()}"
+    >
       <span>
         <a
           th:if="${cursor.hasPrevious()}"

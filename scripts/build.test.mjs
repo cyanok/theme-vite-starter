@@ -46,6 +46,14 @@ await test("主题开发监听与构建错误检查", { timeout: 60_000 }, async
   }
   await symlink(join(projectRoot, "node_modules"), join(directory, "node_modules"), "junction");
 
+  const initialConfig = await readFile(join(directory, "vite.config.ts"), "utf8");
+  await mkdir(join(directory, "initial-config"));
+  await writeFile(join(directory, "initial-config/probe.ts"), "export const marker = ;\n");
+  await writeFile(
+    join(directory, "vite.config.ts"),
+    'import "./initial-config/probe";\n' + initialConfig,
+  );
+
   child = spawn(process.execPath, ["scripts/dev.mjs"], {
     cwd: directory,
     stdio: ["ignore", "pipe", "pipe"],
@@ -80,7 +88,18 @@ await test("主题开发监听与构建错误检查", { timeout: 60_000 }, async
     await waitFor(async () => builds() > previousBuilds && (await predicate()));
   }
 
-  await waitFor(() => builds() > 0);
+  await t.test("启动时配置依赖解析失败后，单独修正依赖即可恢复", async () => {
+    await waitFor(() => failures() > 0);
+    await change(
+      () => writeFile(join(directory, "initial-config/probe.ts"), "export {};\n"),
+      () => exists("templates/index.html"),
+    );
+    await change(
+      () => writeFile(join(directory, "vite.config.ts"), initialConfig),
+      () => exists("templates/index.html"),
+    );
+    await rm(join(directory, "initial-config"), { recursive: true });
+  });
 
   await t.test("片段修改以及嵌套页面增删自动生效", async () => {
     const layout = await read("src/partials/layout.html");
@@ -144,6 +163,76 @@ await test("主题开发监听与构建错误检查", { timeout: 60_000 }, async
         ),
       async () => (await read("templates/index.html")).includes("/themes/theme-watch-test/assets/"),
     );
+  });
+
+  await t.test("根目录环境变量新增和修改自动生效", async () => {
+    const index = await read("src/index.html");
+    await change(
+      async () => {
+        await writeFile(join(directory, ".env"), "VITE_THEME_BUILD_PROBE=initial\n");
+        await writeFile(
+          join(directory, "src/index.html"),
+          index.replace(/<\/include>\s*$/, '<p data-env="%VITE_THEME_BUILD_PROBE%"></p></include>'),
+        );
+      },
+      async () => (await read("templates/index.html")).includes('data-env="initial"'),
+    );
+    await change(
+      () => writeFile(join(directory, ".env"), "VITE_THEME_BUILD_PROBE=updated\n"),
+      async () => (await read("templates/index.html")).includes('data-env="updated"'),
+    );
+    await change(
+      async () => {
+        await writeFile(join(directory, "src/index.html"), index);
+        await rm(join(directory, ".env"));
+      },
+      async () => !(await read("templates/index.html")).includes("data-env"),
+    );
+  });
+
+  await t.test("导入的配置文件修改、原子替换和错误恢复自动生效", async () => {
+    const config = await read("vite.config.ts");
+    await mkdir(join(directory, "build-config"));
+    const helperPath = join(directory, "build-config/probe.ts");
+    await writeFile(helperPath, "export const marker = ;\n");
+    const initialFailures = failures();
+    await writeFile(
+      join(directory, "vite.config.ts"),
+      'import { marker } from "./build-config/probe";\n' +
+        config.replace(
+          "plugins: [",
+          `plugins: [{
+                name: "config-dependency-test",
+                transformIndexHtml(html) { return html + "<!-- config: " + marker + " -->"; }
+              },`,
+        ),
+    );
+    await waitFor(() => failures() > initialFailures);
+    await change(
+      () => writeFile(helperPath, 'export const marker = "initial";\n'),
+      async () => (await read("templates/index.html")).includes("<!-- config: initial -->"),
+    );
+    await change(
+      () => writeFile(helperPath, 'export const marker = "updated";\n'),
+      async () => (await read("templates/index.html")).includes("<!-- config: updated -->"),
+    );
+    await writeFile(helperPath + ".tmp", 'export const marker = "replaced";\n');
+    await change(
+      () => rename(helperPath + ".tmp", helperPath),
+      async () => (await read("templates/index.html")).includes("<!-- config: replaced -->"),
+    );
+    const previousFailures = failures();
+    await writeFile(helperPath, "export const marker = ;\n");
+    await waitFor(() => failures() > previousFailures);
+    await change(
+      () => writeFile(helperPath, 'export const marker = "recovered";\n'),
+      async () => (await read("templates/index.html")).includes("<!-- config: recovered -->"),
+    );
+    await change(
+      () => writeFile(join(directory, "vite.config.ts"), config),
+      async () => !(await read("templates/index.html")).includes("<!-- config:"),
+    );
+    await rm(join(directory, "build-config"), { recursive: true });
   });
 
   await t.test("构建过程中再次保存会串行补构建", async () => {
@@ -219,8 +308,63 @@ await test("主题开发监听与构建错误检查", { timeout: 60_000 }, async
   // 停止监听后再验证产物，避免构建清空输出目录干扰故障注入。
   child.kill("SIGTERM");
   await closed;
+  const verify = () => run(process.execPath, ["scripts/verify-build.mjs"], { cwd: directory });
+  await t.test("产物检查拒绝缺失的运行时模块", async () => {
+    for (const name of ["menu-tree", "category-tree"]) {
+      const path = join(directory, `templates/modules/${name}.html`);
+      await rename(path, path + ".backup");
+      try {
+        await assert.rejects(verify, /Missing build output: templates\/modules\//);
+      } finally {
+        await rename(path + ".backup", path);
+      }
+    }
+  });
+  await t.test("产物检查拒绝缺失的已引用 JS 和 CSS", async () => {
+    const index = await read("templates/index.html");
+    const references = Array.from(
+      index.matchAll(/\b(?:src|href)="\/themes\/[^/]+\/([^"]+\.(?:js|css))"/g),
+      (match) => match[1],
+    );
+    assert.ok(references.some((path) => path.endsWith(".js")));
+    assert.ok(references.some((path) => path.endsWith(".css")));
+    for (const reference of new Set(references)) {
+      const path = join(directory, "templates", reference);
+      await rename(path, path + ".backup");
+      try {
+        await assert.rejects(verify, /Missing build output: templates\/assets\/.+referenced by/);
+      } finally {
+        await rename(path + ".backup", path);
+      }
+    }
+  });
+  await t.test("资源检查解析嵌套相对路径并跳过外部和动态引用", async () => {
+    await mkdir(join(directory, "templates/probe"));
+    const path = join(directory, "templates/probe/resources.html");
+    const layout = await read("templates/layout.html");
+    const stylesheet = layout.match(/href="\/themes\/[^/]+\/(assets\/[^"]+\.css)"/)[1];
+    try {
+      await writeFile(
+        path,
+        `<link href="../${stylesheet}?v=1&amp;mode=test#fragment" rel="stylesheet">
+        <script src="https://cdn.example.invalid/example.js"></script>
+        <img src="/site-owned/image.png">
+        <img th:src="@{/assets/dynamic.png}">
+        <img src="\${dynamicImage}">
+        <img src="assets/prototype.png" th:src="\${dynamicImage}">
+        <link href="assets/prototype.css" data-th-href="\${dynamicStylesheet}">
+        <!-- <img src="../assets/commented-out.png"> -->
+        <img alt='Example src="assets/missing.png"'>
+        <script>const example = '<img src="assets/missing.png">';</script>`,
+      );
+      await verify();
+      await writeFile(path, '<script src="../assets/missing.js"></script>');
+      await assert.rejects(verify, /Missing build output: templates\/assets\/missing\.js/);
+    } finally {
+      await rm(join(directory, "templates/probe"), { recursive: true });
+    }
+  });
   await t.test("产物检查覆盖布局和新增的嵌套 HTML", async () => {
-    const verify = () => run(process.execPath, ["scripts/verify-build.mjs"], { cwd: directory });
     await verify();
     const layout = await read("templates/layout.html");
     await writeFile(

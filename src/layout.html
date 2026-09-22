@@ -17,7 +17,11 @@
     <header class="site-header">
       <div class="container">
         <a class="site-title" th:href="@{/}" th:text="${site.title}">Site Title</a>
-        <nav class="site-nav" th:with="menu = ${menuFinder.getPrimary()}">
+        <nav
+          class="site-nav"
+          aria-label="Main navigation"
+          th:with="menu = ${menuFinder.getPrimary()}"
+        >
           <th:block
             th:replace="~{modules/menu-tree :: tree(menuItems=${menu.menuItems})}"
           ></th:block>

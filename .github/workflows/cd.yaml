@@ -18,4 +18,4 @@ jobs:
       skip-appstore-release: true
       app-id: app-foo
       pnpm-version: "12.4.2"
-      node-version: 24
+      node-version: "24.21.0"

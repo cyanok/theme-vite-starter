@@ -26,6 +26,8 @@
 
 `pnpm dev` 监听源码、公共资源、环境变量文件和构建配置（包括配置导入的本地文件），自动更新 `templates/`。页面由 Halo 渲染，查看改动时需手动刷新浏览器。
 
+修改 `theme.yaml` 或 `settings.yaml` 后，还需在 Halo 控制台的主题详情中点击「重载主题配置」。这些配置存储在数据库中，重新构建或刷新页面不会自动更新。
+
 开发环境需关闭 Thymeleaf 缓存；使用 Docker 时设置 `SPRING_THYMELEAF_CACHE=false`，并将项目目录挂载到容器内对应的主题目录。详见 [Halo 开发环境准备](https://docs.halo.run/developer-guide/theme/prepare)。
 
 ## 环境变量
@@ -58,9 +60,13 @@
 - `src/partials/layout.html`：主题页面的公共布局，通过 `<include>` / `<slot>` 在构建时展开。
 - `src/layout.html`：构建为 `templates/layout.html`，提供 `html(head, content)` 片段，供插件前台页面复用主题布局，详见 [Halo 页面布局契约](https://docs.halo.run/developer-guide/theme/page-layout)。
 
-两种布局通过 `src/modules/header.html` 和 `src/modules/footer.html` 共享页头、导航与页脚，由 Halo 在运行时解析。公共结构只需修改这两个片段。
+两种布局通过 `src/modules/header.html` 和 `src/modules/footer.html` 共享页头、导航与页脚，由 Halo 在运行时解析。页头和页脚内容统一在这两个片段中维护。
 
 共享布局中的资源入口使用相对于 `src/` 根目录的路径，如 `/js/main.ts`。
+
+`src/js/main.ts` 加载公共样式并处理正文宽内容。页面需要独立脚本时，在该页面的 `head` 模板中添加对应的模块入口即可。
+
+无需编译的静态资源放入 `public/assets/`，构建后位于 `templates/assets/`。例如 `public/assets/logo.svg` 可在运行时模板中通过 `th:src="@{/assets/logo.svg}"` 引用。
 
 ## 常用命令
 
@@ -74,7 +80,11 @@
 | `pnpm verify:build` | 检查已有构建产物的完整性与布局契约      |
 | `pnpm build`        | 检查、构建并打包主题 ZIP                |
 
-单独运行 `pnpm verify:build` 前，先执行 `pnpm build-only` 生成构建产物。
+`pnpm test:build` 在临时目录中使用独立主题示例验证开发监听、模板编译、公共资源和错误恢复。检查实际主题时，运行 `pnpm build` 完成检查、构建和打包。
+
+单独运行 `pnpm verify:build` 前，先执行 `pnpm build-only`。产物检查覆盖 HTML 入口的输出文件、模板编译错误、页面布局契约和可静态解析的资源引用。
+
+Thymeleaf 表达式、插件集成和最终页面效果需在 Halo 中验证，参见 [运行时冒烟清单](docs/halo-smoke-test.md)。
 
 ## 打包与发布
 

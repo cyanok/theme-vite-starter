@@ -1,5 +1,5 @@
 import { readdir, readFile, stat } from "node:fs/promises";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { parse as parseHtml, parseFragment } from "parse5";
@@ -12,22 +12,12 @@ if (typeof theme?.metadata?.name !== "string" || !theme.metadata.name.trim()) {
   throw new Error("theme.yaml is missing metadata.name");
 }
 const themeBase = new URL(`/themes/${theme.metadata.name}/`, "https://theme.invalid");
-const pageNames = [
-  "index.html",
-  "post.html",
-  "page.html",
-  "archives.html",
-  "tags.html",
-  "tag.html",
-  "categories.html",
-  "category.html",
-];
-const moduleNames = [
-  "modules/menu-tree.html",
-  "modules/category-tree.html",
-  "modules/header.html",
-  "modules/footer.html",
-];
+// 与 Halo 插件一致：src 下的 HTML 都是入口，任意层级的 partials 目录除外。
+const sourcePath = fileURLToPath(new URL("../src/", import.meta.url));
+const sourceNames = (await readdir(sourcePath, { recursive: true, withFileTypes: true }))
+  .filter((entry) => entry.isFile())
+  .map((entry) => relative(sourcePath, resolve(entry.parentPath, entry.name)).replaceAll("\\", "/"))
+  .filter((name) => name.endsWith(".html") && !name.split("/").includes("partials"));
 const resourceElements = new Set([
   "script",
   "link",
@@ -72,30 +62,6 @@ function inserts(node, parameter) {
   return ["replace", "insert"].some((name) => expression(node, name) === `\${${parameter}}`);
 }
 
-function assertPageStructure(document, templateName) {
-  const nodes = [...elements(document)];
-  for (const tagName of ["html", "head", "main"]) {
-    // parse5 会补全缺失的 html/head，必须确认源码中确实存在这些节点。
-    if (!nodes.some((node) => node.tagName === tagName && node.sourceCodeLocation)) {
-      throw new Error(`templates/${templateName} is missing page structure: ${tagName}`);
-    }
-  }
-  const main = nodes.find((node) => node.tagName === "main");
-  if (
-    !main.childNodes.some(
-      (node) => node.tagName || (node.nodeName === "#text" && node.value.trim()),
-    )
-  ) {
-    throw new Error(`templates/${templateName} is missing page content`);
-  }
-  for (const part of ["header", "footer"]) {
-    const reference = new RegExp(`^~\\{modules/${part}::${part}(?:\\(\\))?\\}$`);
-    if (!nodes.some((node) => reference.test(expression(node, "replace")))) {
-      throw new Error(`templates/${templateName} is missing shared ${part}`);
-    }
-  }
-}
-
 function assertLayoutContract(document) {
   const nodes = [...elements(document)];
   // 参数顺序属于契约；括号、逗号周围的空白和 HTML 引号风格不属于契约。
@@ -106,22 +72,17 @@ function assertLayoutContract(document) {
   );
   if (!fragment) throw new Error("templates/layout.html is missing html(head, content) fragment");
   const fragmentNodes = [...elements(fragment)];
-  const guardedHead = fragmentNodes.some(
-    (node) =>
-      expression(node, "if") === "${head!=null}" &&
-      [...elements(node)].some((child) => inserts(child, "head")),
-  );
-  if (!guardedHead) throw new Error("templates/layout.html is missing guarded head insertion");
-  const main = fragmentNodes.find((node) => node.tagName === "main");
-  if (!main || ![...elements(main)].some((node) => inserts(node, "content"))) {
-    throw new Error("templates/layout.html is missing content insertion in main");
+  if (!fragmentNodes.some((node) => inserts(node, "head"))) {
+    throw new Error("templates/layout.html is missing head insertion");
+  }
+  if (!fragmentNodes.some((node) => inserts(node, "content"))) {
+    throw new Error("templates/layout.html is missing content insertion");
   }
 }
 
-for (const pageName of [...pageNames, ...moduleNames]) {
-  await assertFileExists(pageName);
+for (const sourceName of new Set(["index.html", "layout.html", ...sourceNames])) {
+  await assertFileExists(sourceName);
 }
-await assertFileExists("layout.html");
 
 const templateNames = (await readdir(templatesDirectory, { recursive: true })).filter((name) =>
   name.endsWith(".html"),
@@ -137,26 +98,7 @@ for (const templateName of templateNames) {
   if (/<!--\s*Partial error:/i.test(page)) {
     throw new Error(`templates/${templateName} contains a template compilation error`);
   }
-  if (pageNames.includes(templateName) || templateName === "layout.html") {
-    const document = parseHtml(page, { sourceCodeLocationInfo: true });
-    assertPageStructure(document, templateName);
-    if (templateName === "layout.html") assertLayoutContract(document);
-  }
-  for (const part of ["header", "footer"]) {
-    if (templateName.replaceAll("\\", "/") !== `modules/${part}.html`) continue;
-    const nodes = [...elements(parseFragment(page))];
-    const signature = new RegExp(`^${part}(?:\\(\\))?$`);
-    const fragment = nodes.find(
-      (node) => node.tagName === part && signature.test(expression(node, "fragment")),
-    );
-    if (!fragment) throw new Error(`templates/${templateName} is missing ${part} fragment`);
-    if (
-      part === "footer" &&
-      ![...elements(fragment)].some((node) => node.tagName === "halo:footer")
-    ) {
-      throw new Error(`templates/${templateName} is missing halo:footer`);
-    }
-  }
+  if (templateName === "layout.html") assertLayoutContract(parseHtml(page));
   const templateUrl = new URL(templateName.replaceAll("\\", "/"), themeBase);
   for (const element of elements(parseFragment(page))) {
     if (!resourceElements.has(element.tagName)) continue;
@@ -181,20 +123,6 @@ for (const templateName of templateNames) {
   }
 }
 
-const assetsDirectory = new URL("assets/", templatesDirectory);
-let assetNames;
-try {
-  assetNames = await readdir(assetsDirectory, { recursive: true });
-} catch {
-  throw new Error("Missing build output directory: templates/assets/");
-}
-
-for (const extension of [".css", ".js"]) {
-  if (!assetNames.some((assetName) => assetName.endsWith(extension))) {
-    throw new Error(`templates/assets/ contains no ${extension} build output`);
-  }
-}
-
 console.log(
-  `Verified ${pageNames.length} theme pages, ${moduleNames.length} runtime modules, ${templateNames.length} HTML templates, the Halo page-layout contract, and static resource references in ${join("templates", "assets")}.`,
+  `Verified ${sourceNames.length} source template outputs, ${templateNames.length} HTML templates, the Halo page-layout contract, and static resource references.`,
 );

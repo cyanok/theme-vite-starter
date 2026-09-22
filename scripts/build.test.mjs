@@ -82,19 +82,19 @@ export default mergeConfig(config, { envDir: import.meta.dirname, plugins: [] })
 `,
     "src/index.html": '<include src="fixture.html"><p>BUILD_CONTENT</p></include>\n',
     "src/partials/fixture.html": `<!doctype html>
-<html><head><title>Build fixture</title><script type="module" src="/js/probe.ts"></script></head>
+<html><head><title>Build fixture</title><script type="module" src="/assets/js/probe.ts"></script></head>
 <body><section data-watch="initial"><slot /></section></body></html>
 `,
     "src/layout.html": `<!doctype html>
 <html th:fragment="html (head, content)"><head>
 <th:block th:if="\${head != null}"><th:block th:replace="\${head}" /></th:block>
-<script type="module" src="/js/probe.ts"></script></head>
+<script type="module" src="/assets/js/probe.ts"></script></head>
 <body><section><th:block th:replace="\${content}" /></section><halo:footer /></body></html>
 `,
     "src/modules/navigation.html": '<nav th:fragment="navigation">Fixture navigation</nav>\n',
-    "src/js/probe.ts":
+    "src/assets/js/probe.ts":
       'import "../css/probe.css";\ndocument.documentElement.dataset.build = "fixture";\n',
-    "src/css/probe.css": "body { color: #333; }\n",
+    "src/assets/css/probe.css": "body { color: #333; }\n",
   };
   for (const [path, content] of Object.entries(fixtureFiles)) {
     await mkdir(dirname(join(directory, path)), { recursive: true });

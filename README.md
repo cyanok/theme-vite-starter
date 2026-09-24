@@ -7,7 +7,7 @@
 ## 环境要求
 
 - Halo `>=2.26.0`
-- Node.js `>=24.11.0`，推荐使用 [.node-version](.node-version) 指定的版本
+- Node.js `>=24.21.0`，推荐使用 [.node-version](.node-version) 指定的版本
 - pnpm `12.4.2`
 
 ## 快速开始

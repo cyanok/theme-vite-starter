@@ -23,7 +23,7 @@
     "yaml": "^2.8.3"
   },
   "engines": {
-    "node": ">=24.11.0",
+    "node": ">=24.21.0",
     "pnpm": "^12.4.2"
   },
   "packageManager": "pnpm@12.4.2"

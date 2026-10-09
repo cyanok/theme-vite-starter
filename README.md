@@ -7,7 +7,7 @@
 ## 环境要求
 
 - Halo `>=2.26.0`
-- Node.js `>=24.21.0`，推荐使用 [.node-version](.node-version) 指定的版本
+- Node.js `^24.21.0`，推荐使用 [.node-version](.node-version) 指定的版本
 - pnpm `12.4.2`
 
 ## 快速开始
@@ -40,7 +40,9 @@
 
 使用 `pnpm check` 检查格式与代码问题，`pnpm fix` 自动修复可处理的问题。修改页面、样式或插件集成后，按 [运行时冒烟清单](docs/halo-smoke-test.md) 在 Halo 中检查受影响的页面。
 
-## 目录与布局
+依赖安装会自动应用主题构建插件的兼容性补丁，详见 [补丁说明](patches/README.md)。修改构建脚本、配置、依赖或补丁后，额外运行 `pnpm test:build` 验证开发监听和模板编译。
+
+## 项目目录
 
 ```text
 .
@@ -53,6 +55,7 @@
 │   └── partials/        # 构建期复用的布局和模板片段
 ├── scripts/             # 开发与验证脚本
 ├── docs/                # Halo 运行时冒烟清单与正文示例
+├── i18n/                # Halo 运行时消息：默认英文、简体中文
 ├── patches/             # pnpm 管理的依赖兼容性补丁
 ├── public/              # 可选；构建时原样复制到 templates/
 ├── templates/           # 构建生成，禁止直接编辑
@@ -62,12 +65,20 @@
 └── vite.config.ts       # Vite Plus 与 Halo 主题插件配置
 ```
 
+## 模板与资源
+
+### 页面布局
+
 两种布局分别用于：
 
 - `src/partials/layout.html`：主题页面的公共布局，通过 `<include>` / `<slot>` 在构建时展开。
 - `src/layout.html`：构建为 `templates/layout.html`，提供 `html(head, content)` 片段，供插件前台页面复用主题布局，详见 [Halo 页面布局契约](https://docs.halo.run/developer-guide/theme/page-layout)。
 
 两种布局通过 `src/modules/header.html` 和 `src/modules/footer.html` 共享页头、导航与页脚，由 Halo 在运行时解析。页头和页脚内容统一在这两个片段中维护。
+
+布局包含无需 JavaScript 的“跳转到正文”链接，调整布局时保留链接与正文目标的对应关系。多级导航在 `src/modules/menu-tree.html` 中维护，父级链接与子菜单展开按钮相互独立；禁用 JavaScript 后仍可折叠。
+
+### 新增页面
 
 `src/` 下的 `.html` 文件自动作为构建入口，并保留相对目录输出到 `templates/`；任意层级的 `partials/` 目录都只用于构建期复用，不单独输出。`modules/` 中的运行时片段需要保留在产物中，不要移入 `partials/`。
 
@@ -85,13 +96,22 @@
 
 这里的 `layout.html` 由构建插件从 `src/partials/` 中查找；`template name="head"` 替换布局的具名插槽，其余内容填入默认插槽。新增模板的文件名与访问方式需遵循 [Halo 模板路由映射](https://docs.halo.run/developer-guide/theme/template-route-mapping)，添加 HTML 文件本身不会注册新的站点路由；文章、独立页面和分类的自定义模板需在 `theme.yaml` 的 `spec.customTemplates` 中声明。
 
+### 样式与脚本
+
 共享布局中的资源入口使用以 `/` 开头、相对于 `src/` 根目录的路径，如 `/assets/js/main.ts`。
 
 `src/assets/js/main.ts` 导入 `src/assets/css/main.css` 并处理正文宽内容。页面需要独立脚本时，将脚本放入 `src/assets/js/`，并在该页面的 `head` 模板中添加对应的模块入口。
 
 无需编译的静态资源放入 `public/assets/`，构建后位于 `templates/assets/`。例如 `public/assets/logo.svg` 可在运行时模板中通过 `th:src="@{/assets/logo.svg}"` 引用。
 
-依赖安装会自动应用主题构建插件的兼容性补丁，详见 [补丁说明](patches/README.md)。修改构建脚本、配置、依赖或补丁后，额外运行 `pnpm test:build` 验证开发监听和模板编译。
+## 语言定制
+
+主题固定文案使用 Halo 的 `#{...}` 消息表达式，语言文件由 Halo 直接读取并随主题打包：
+
+- `i18n/default.properties`：默认英文，也是未提供翻译时的回退文案。
+- `i18n/zh_CN.properties`：简体中文。
+
+新增或修改文案时，同步维护两份文件中的消息键。菜单名称和文章内容由站点数据决定，不由主题翻译。语言切换的验证方法见 [运行时冒烟清单](docs/halo-smoke-test.md)。
 
 ## 打包与发布
 
@@ -108,7 +128,7 @@ pnpm build
 项目提供两套工作流：
 
 - [CI 检查](.github/workflows/ci.yaml)：执行静态检查、构建流程测试、构建、产物验证和 ZIP 打包。
-- [Release 发布](.github/workflows/cd.yaml)：发布 GitHub Release 时触发，使用 Halo 共享工作流构建并发布主题，默认跳过应用市场发布；需要发布到应用市场时，按工作流注释配置发布选项。
+- [Release 发布](.github/workflows/cd.yaml)：发布 GitHub Release 时触发，先执行 `pnpm test:build`，通过后使用 Halo 共享工作流构建并发布主题，默认跳过应用市场发布；需要发布到应用市场时，按工作流注释配置发布选项。
 
 发布前更新 `theme.yaml` 的 `spec.version`，GitHub Release 标签不会自动回写主题版本。
 

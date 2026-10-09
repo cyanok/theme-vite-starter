@@ -3,6 +3,7 @@
   data-color-scheme="light"
   xmlns:th="https://www.thymeleaf.org"
   th:lang="${#locale.toLanguageTag}"
+  th:attr="data-scroll-table-label=#{content.scrollTable},data-scroll-embed-label=#{content.scrollEmbed}"
   th:fragment="html (head, content)"
 >
   <head>
@@ -15,9 +16,10 @@
     <script type="module" src="/assets/js/main.ts"></script>
   </head>
   <body>
+    <a class="skip-link" href="#main-content" th:text="#{navigation.skip}">Skip to content</a>
     <header th:replace="~{modules/header :: header}"></header>
 
-    <main class="site-main">
+    <main id="main-content" class="site-main" tabindex="-1">
       <div class="container">
         <th:block th:replace="${content}" />
       </div>

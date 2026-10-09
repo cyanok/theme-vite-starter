@@ -1,9 +1,9 @@
 <include src="layout.html">
   <template name="head">
-    <title th:text="|Categories - ${site.title}|">Categories</title>
+    <title th:text="|#{categories.title} - ${site.title}|">Categories</title>
   </template>
 
-  <h1>Categories</h1>
-  <p th:if="${#lists.isEmpty(categories)}">No categories yet.</p>
+  <h1 th:text="#{categories.title}">Categories</h1>
+  <p th:if="${#lists.isEmpty(categories)}" th:text="#{empty.categories}">No categories yet.</p>
   <th:block th:replace="~{modules/category-tree :: tree(categories=${categories})}"></th:block>
 </include>

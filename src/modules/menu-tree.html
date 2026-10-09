@@ -1,12 +1,23 @@
 <ul th:fragment="tree (menuItems)" th:if="${not #lists.isEmpty(menuItems)}">
-  <li th:each="item : ${menuItems}">
+  <li
+    class="menu-item"
+    th:each="item : ${menuItems}"
+    th:classappend="${not #lists.isEmpty(item.children)} ? 'has-children'"
+  >
     <a
+      class="menu-link"
       th:href="@{${item.status.href}}"
       th:text="${item.status.displayName}"
       th:target="${item.spec.target?.value}"
     ></a>
-    <th:block th:if="${not #lists.isEmpty(item.children)}">
+    <details class="menu-branch" th:if="${not #lists.isEmpty(item.children)}">
+      <summary
+        class="menu-toggle"
+        th:attr="aria-label=#{navigation.submenu(${item.status.displayName})}"
+      >
+        <span class="menu-chevron" aria-hidden="true"></span>
+      </summary>
       <th:block th:replace="~{modules/menu-tree :: tree(menuItems=${item.children})}"></th:block>
-    </th:block>
+    </details>
   </li>
 </ul>

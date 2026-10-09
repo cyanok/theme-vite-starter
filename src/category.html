@@ -3,10 +3,10 @@
     <title th:text="|${category.spec.displayName} - ${site.title}|">Category Archive</title>
   </template>
 
-  <h1 th:text="|Category: ${category.spec.displayName}|"></h1>
+  <h1 th:text="#{category.heading(${category.spec.displayName})}"></h1>
   <p th:if="${category.spec.description}" th:text="${category.spec.description}"></p>
 
-  <p th:if="${#lists.isEmpty(posts.items)}">No posts yet.</p>
+  <p th:if="${#lists.isEmpty(posts.items)}" th:text="#{empty.posts}">No posts yet.</p>
   <ul class="post-list" th:if="${not #lists.isEmpty(posts.items)}">
     <include src="post-card.html"></include>
   </ul>

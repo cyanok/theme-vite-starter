@@ -1,4 +1,5 @@
 import "../css/main.css";
+import "./navigation";
 
 document
   .querySelectorAll(
@@ -13,10 +14,11 @@ document
     container.className = "article-content-scroll";
     container.tabIndex = 0;
     container.setAttribute("role", "region");
-    container.setAttribute(
-      "aria-label",
-      element.tagName === "TABLE" ? "Scrollable table" : "Scrollable embedded content",
-    );
+    const label =
+      document.documentElement.dataset[
+        element.tagName === "TABLE" ? "scrollTableLabel" : "scrollEmbedLabel"
+      ];
+    if (label) container.setAttribute("aria-label", label);
     element.before(container);
     container.append(element);
   });

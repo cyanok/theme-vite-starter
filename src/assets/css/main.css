@@ -41,6 +41,25 @@ a:hover {
   border: 0;
 }
 
+.skip-link {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 100;
+  max-width: calc(100% - 2rem);
+  padding: 0.5rem 1rem;
+  color: #333;
+  background: #fff;
+  border: 2px solid currentColor;
+  transform: translateY(calc(-100% - 2rem));
+}
+
+.skip-link:focus {
+  transform: none;
+  outline: 2px solid #0070f3;
+  outline-offset: 2px;
+}
+
 .site-title,
 .site-nav,
 .post-title,
@@ -56,7 +75,7 @@ a:hover {
 
 .site-header .container {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 0.5rem;
@@ -80,13 +99,111 @@ a:hover {
   gap: 1rem;
 }
 
-.site-nav ul ul {
+.site-nav {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.menu-item {
+  position: relative;
+  min-width: 0;
+}
+
+.menu-link {
+  display: block;
+  padding: 0.25rem 0.5rem;
+}
+
+.has-children > .menu-link {
+  padding-inline-end: 2.5rem;
+}
+
+.menu-toggle {
+  position: absolute;
+  top: 0;
+  inset-inline-end: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  color: #0070f3;
+  border-radius: 4px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.menu-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.menu-toggle:hover {
+  background: #f0f0f0;
+}
+
+.site-nav :focus-visible {
+  outline: 2px solid #0070f3;
+  outline-offset: 2px;
+}
+
+.menu-chevron {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-0.125rem) rotate(45deg);
+}
+
+.menu-branch[open] > .menu-toggle .menu-chevron {
+  transform: translateY(0.125rem) rotate(225deg);
+}
+
+.site-nav .menu-branch > ul {
   margin-top: 0.25rem;
-  padding-left: 1rem;
+  margin-inline-start: 0.5rem;
+  padding-inline-start: 0.5rem;
+  border-inline-start: 1px solid #ddd;
+}
+
+@media (width >= 768px) {
+  .site-nav.has-dropdowns > ul > .menu-item > .menu-branch > ul {
+    position: absolute;
+    z-index: 10;
+    top: 100%;
+    inset-inline-end: 0;
+    width: max-content;
+    min-width: 10rem;
+    max-width: min(20rem, calc(100vw - 2rem));
+    margin: 0;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+    box-shadow: 0 0.25rem 0.75rem #0001;
+    transform: translateX(var(--menu-offset, 0px));
+  }
+}
+
+@media (width < 768px) {
+  .site-nav {
+    width: 100%;
+  }
+
+  .site-nav > ul {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 0.25rem 0.75rem;
+  }
 }
 
 .site-main {
   padding: 2rem 0;
+}
+
+.site-main:focus-visible {
+  outline: 2px solid #0070f3;
+  outline-offset: -2px;
 }
 
 .post-list {

@@ -1,10 +1,10 @@
 <include src="layout.html">
   <template name="head">
-    <title th:text="|Tags - ${site.title}|">Tags</title>
+    <title th:text="|#{tags.title} - ${site.title}|">Tags</title>
   </template>
 
-  <h1>Tags</h1>
-  <p th:if="${#lists.isEmpty(tags)}">No tags yet.</p>
+  <h1 th:text="#{tags.title}">Tags</h1>
+  <p th:if="${#lists.isEmpty(tags)}" th:text="#{empty.tags}">No tags yet.</p>
   <ul class="tag-list" th:if="${not #lists.isEmpty(tags)}">
     <li th:each="tag : ${tags}">
       <a th:href="@{${tag.status.permalink}}" th:text="${tag.spec.displayName}" class="tag"></a>

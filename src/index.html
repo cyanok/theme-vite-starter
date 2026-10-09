@@ -4,7 +4,7 @@
   </template>
 
   <h1 class="sr-only" th:text="${site.title}">Home</h1>
-  <p th:if="${#lists.isEmpty(posts.items)}">No posts yet.</p>
+  <p th:if="${#lists.isEmpty(posts.items)}" th:text="#{empty.posts}">No posts yet.</p>
   <ul class="post-list" th:if="${not #lists.isEmpty(posts.items)}">
     <include src="post-card.html"></include>
   </ul>
